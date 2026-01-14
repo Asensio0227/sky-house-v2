@@ -8,12 +8,14 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  ToastAndroid,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Slider } from 'react-native-elements';
 import {
   ActivityIndicator,
-  Appbar,
+  Button,
   Chip,
   FAB,
   Searchbar,
@@ -23,7 +25,6 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import Carousel, {
@@ -33,7 +34,6 @@ import Carousel, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootEstateState } from '../../../store';
-import Screen from '../../components/custom/Screen';
 import { ListSkeleton } from '../../components/custom/SkeletonLoader';
 import {
   EmptyState,
@@ -46,6 +46,7 @@ import {
   resetAds,
   retrieveNearbyEstates,
   setCurrentLocation,
+  setDistance,
   setListingType,
 } from '../../features/estate/estateSlice';
 import { designTokens } from '../../utils/designTokens';
@@ -61,6 +62,9 @@ const Home = React.memo(() => {
     error,
     currentLocation,
     listingType,
+    fetchMode,
+    nearbyExhausted,
+    distance,
   } = useSelector((store: RootEstateState) => store.ESTATE);
   const dispatch = useDispatch<AppDispatch>();
 
@@ -76,7 +80,6 @@ const Home = React.memo(() => {
   // Animation values
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(50);
-  const headerOpacity = useSharedValue(1);
   const fabScale = useSharedValue(1);
 
   const navigation: any = useNavigation();
@@ -86,10 +89,6 @@ const Home = React.memo(() => {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
     transform: [{ translateY: slideAnim.value }],
-  }));
-
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
   }));
 
   const fabStyle = useAnimatedStyle(() => ({
@@ -163,9 +162,23 @@ const Home = React.memo(() => {
 
   const handleScrollEndReached = useCallback(() => {
     if (!isLoading && hasMore && houses.length > 0) {
+      if (nearbyExhausted && fetchMode === 'all' && page === 1) {
+        ToastAndroid.show(
+          '🌍 Loading properties from all areas...',
+          ToastAndroid.LONG
+        );
+      }
       dispatch(retrieveNearbyEstates());
     }
-  }, [isLoading, hasMore, houses.length, dispatch]);
+  }, [
+    isLoading,
+    hasMore,
+    houses.length,
+    nearbyExhausted,
+    fetchMode,
+    page,
+    dispatch,
+  ]);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -212,7 +225,7 @@ const Home = React.memo(() => {
   }, [requestLocationPermission, dispatch]);
 
   const handleListingTypeChange = useCallback(
-    (type: 'rent' | 'sale') => {
+    (type: 'rent' | 'sale' | 'all') => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       dispatch(setListingType(type));
       dispatch(resetAds());
@@ -225,6 +238,21 @@ const Home = React.memo(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowFilters((prev) => !prev);
   }, []);
+
+  // Get mode indicator text
+  const getModeIndicator = () => {
+    if (isLoading && page === 1) {
+      return '⏳ Loading...';
+    }
+
+    if (fetchMode === 'nearby' && !nearbyExhausted) {
+      return '📍 Nearby Properties';
+    } else if (fetchMode === 'all' || nearbyExhausted) {
+      return '🌍 All Properties';
+    }
+
+    return currentLocation ? '📍 Nearby Properties' : '🌍 All Properties';
+  };
 
   // Load data when screen is focused
   useFocusEffect(
@@ -253,21 +281,19 @@ const Home = React.memo(() => {
     }, [houses.length, error, dispatch])
   );
 
+  const styles = createStyles(theme);
+
   // Location permission request screen
   if (locationError && !currentLocation && !isInitialLoad) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-      >
+      <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle={theme.dark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
         <Animated.View style={[styles.content, animatedStyle]}>
           <View style={styles.modernHeader}>
-            <Text style={[styles.logoText, { color: theme.colors.primary }]}>
-              EstateHub
-            </Text>
+            <Text style={styles.logoText}>EstateHub</Text>
           </View>
 
           <View style={styles.centerContent}>
@@ -293,18 +319,14 @@ const Home = React.memo(() => {
   // Empty state
   if (!isLoading && !isInitialLoad && houses.length === 0 && !error) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-      >
+      <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle={theme.dark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
         <Animated.View style={[styles.content, animatedStyle]}>
           <View style={styles.modernHeader}>
-            <Text style={[styles.logoText, { color: theme.colors.primary }]}>
-              EstateHub
-            </Text>
+            <Text style={styles.logoText}>EstateHub</Text>
           </View>
 
           <EmptyState
@@ -325,18 +347,14 @@ const Home = React.memo(() => {
   // Error state
   if (error && !isLoading && houses.length === 0) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-      >
+      <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle={theme.dark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
         <Animated.View style={[styles.content, animatedStyle]}>
           <View style={styles.modernHeader}>
-            <Text style={[styles.logoText, { color: theme.colors.primary }]}>
-              EstateHub
-            </Text>
+            <Text style={styles.logoText}>EstateHub</Text>
           </View>
 
           <ErrorState
@@ -352,44 +370,38 @@ const Home = React.memo(() => {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
+    <SafeAreaView style={styles.container}>
       <StatusBar
         barStyle={theme.dark ? 'light-content' : 'dark-content'}
         backgroundColor={theme.colors.background}
       />
-
       <Animated.View style={[styles.content, animatedStyle]}>
         <FlashList
           data={houses}
           ListHeaderComponent={() => (
             <>
-              {/* Modern Header - Now inside scrollable area */}
-              <View
-                style={[
-                  styles.modernHeader,
-                  { backgroundColor: theme.colors.background },
-                ]}
-              >
+              {/* Modern Header */}
+              <View style={styles.modernHeader}>
                 <View style={styles.headerTop}>
                   <View style={styles.headerLeft}>
-                    <Text
-                      style={[styles.logoText, { color: theme.colors.primary }]}
-                    >
-                      EstateHub
-                    </Text>
-                    <Text
-                      style={[
-                        styles.locationText,
-                        { color: theme.colors.onSurfaceVariant },
-                      ]}
-                    >
-                      📍{' '}
-                      {currentLocation ? 'Nearby Properties' : 'All Properties'}
+                    <Text style={styles.logoText}>EstateHub</Text>
+                    <Text style={styles.locationText}>
+                      {getModeIndicator()}
                     </Text>
                   </View>
                 </View>
+
+                {fetchMode === 'all' && nearbyExhausted && (
+                  <View style={styles.modeIndicator}>
+                    <Chip
+                      icon='earth'
+                      style={styles.modeChip}
+                      textStyle={styles.modeChipText}
+                    >
+                      Showing all properties
+                    </Chip>
+                  </View>
+                )}
 
                 {/* Search Bar */}
                 <Searchbar
@@ -398,35 +410,69 @@ const Home = React.memo(() => {
                   value={searchQuery}
                   onIconPress={handleSearchPress}
                   onSubmitEditing={handleSearchPress}
-                  style={[
-                    styles.searchBar,
-                    {
-                      backgroundColor: theme.colors.surfaceVariant,
-                      elevation: 0,
-                    },
-                  ]}
+                  style={styles.searchBar}
                   inputStyle={styles.searchInput}
                   iconColor={theme.colors.primary}
                 />
 
+                {/* Distance Slider */}
+                <View style={styles.distanceSlider}>
+                  <Text style={styles.filterLabel}>
+                    Search Radius: {distance}km
+                  </Text>
+                  <Slider
+                    value={distance}
+                    onValueChange={(value) => {
+                      dispatch(setDistance(value));
+                      dispatch(resetAds());
+                    }}
+                    onSlidingComplete={() => {
+                      dispatch(retrieveNearbyEstates());
+                    }}
+                    minimumValue={5}
+                    maximumValue={100}
+                    step={5}
+                    thumbTintColor={theme.colors.primary}
+                    minimumTrackTintColor={theme.colors.primary}
+                    maximumTrackTintColor={theme.colors.surfaceVariant}
+                  />
+                </View>
+
                 {/* Filter Chips */}
                 <View style={styles.filterChipsContainer}>
+                  <Chip
+                    selected={!listingType || listingType === 'all'}
+                    onPress={() => handleListingTypeChange('all')}
+                    style={[
+                      styles.filterChip,
+                      (!listingType || listingType === 'all') &&
+                        styles.filterChipActive,
+                    ]}
+                    textStyle={
+                      !listingType || listingType === 'all'
+                        ? styles.filterChipTextActive
+                        : styles.filterChipText
+                    }
+                    mode={
+                      !listingType || listingType === 'all'
+                        ? 'flat'
+                        : 'outlined'
+                    }
+                  >
+                    All
+                  </Chip>
                   <Chip
                     selected={listingType === 'sale'}
                     onPress={() => handleListingTypeChange('sale')}
                     style={[
                       styles.filterChip,
-                      listingType === 'sale' && {
-                        backgroundColor: theme.colors.primaryContainer,
-                      },
+                      listingType === 'sale' && styles.filterChipActive,
                     ]}
-                    textStyle={{
-                      color:
-                        listingType === 'sale'
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onSurfaceVariant,
-                      fontWeight: listingType === 'sale' ? '600' : '400',
-                    }}
+                    textStyle={
+                      listingType === 'sale'
+                        ? styles.filterChipTextActive
+                        : styles.filterChipText
+                    }
                     mode={listingType === 'sale' ? 'flat' : 'outlined'}
                   >
                     For Sale
@@ -436,17 +482,13 @@ const Home = React.memo(() => {
                     onPress={() => handleListingTypeChange('rent')}
                     style={[
                       styles.filterChip,
-                      listingType === 'rent' && {
-                        backgroundColor: theme.colors.primaryContainer,
-                      },
+                      listingType === 'rent' && styles.filterChipActive,
                     ]}
-                    textStyle={{
-                      color:
-                        listingType === 'rent'
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onSurfaceVariant,
-                      fontWeight: listingType === 'rent' ? '600' : '400',
-                    }}
+                    textStyle={
+                      listingType === 'rent'
+                        ? styles.filterChipTextActive
+                        : styles.filterChipText
+                    }
                     mode={listingType === 'rent' ? 'flat' : 'outlined'}
                   >
                     For Rent
@@ -455,6 +497,7 @@ const Home = React.memo(() => {
                     icon='tune'
                     onPress={toggleFilters}
                     style={styles.filterChip}
+                    textStyle={styles.filterChipText}
                     mode='outlined'
                   >
                     Filters
@@ -470,12 +513,7 @@ const Home = React.memo(() => {
                 featuredAds.length > 0 && (
                   <View style={styles.featuredSection}>
                     <View style={styles.sectionHeader}>
-                      <Text
-                        style={[
-                          styles.sectionTitle,
-                          { color: theme.colors.onSurface },
-                        ]}
-                      >
+                      <Text style={styles.sectionTitle}>
                         ✨ Featured Properties
                       </Text>
                     </View>
@@ -500,34 +538,16 @@ const Home = React.memo(() => {
                     <Pagination.Basic
                       progress={progress}
                       data={featuredAds}
-                      dotStyle={[
-                        styles.paginationDot,
-                        { backgroundColor: theme.colors.primary },
-                      ]}
-                      activeDotStyle={[
-                        styles.paginationDotActive,
-                        { backgroundColor: theme.colors.primary },
-                      ]}
+                      dotStyle={styles.paginationDot}
+                      activeDotStyle={styles.paginationDotActive}
                       containerStyle={styles.paginationContainer}
                       onPress={onPressPagination}
                     />
 
                     {/* All Properties Header */}
                     <View style={styles.sectionHeader}>
-                      <Text
-                        style={[
-                          styles.sectionTitle,
-                          { color: theme.colors.onSurface },
-                        ]}
-                      >
-                        All Properties
-                      </Text>
-                      <Text
-                        style={[
-                          styles.propertyCount,
-                          { color: theme.colors.onSurfaceVariant },
-                        ]}
-                      >
+                      <Text style={styles.sectionTitle}>All Properties</Text>
+                      <Text style={styles.propertyCount}>
                         {houses.length} listings
                       </Text>
                     </View>
@@ -555,48 +575,45 @@ const Home = React.memo(() => {
           showsVerticalScrollIndicator={false}
           onEndReached={handleScrollEndReached}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={() =>
-            !hasMore ? (
-              <View style={styles.endMessage}>
-                <Text
-                  style={[
-                    styles.endText,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  You've seen all properties! 🎉
-                </Text>
-              </View>
-            ) : (
-              isLoading &&
-              houses.length > 0 && (
+          ListFooterComponent={() => {
+            if (!hasMore) {
+              return (
+                <View style={styles.endMessage}>
+                  <Text style={styles.endText}>
+                    🎉 You've seen all properties!
+                  </Text>
+                </View>
+              );
+            }
+
+            if (isLoading && houses.length > 0) {
+              const loadingMessage =
+                fetchMode === 'all' && nearbyExhausted
+                  ? 'Loading properties from all areas...'
+                  : fetchMode === 'nearby'
+                  ? 'Loading nearby properties...'
+                  : 'Loading more properties...';
+
+              return (
                 <View style={styles.footerLoader}>
                   <ActivityIndicator
                     size='small'
                     color={theme.colors.primary}
                   />
-                  <Text
-                    style={[
-                      styles.loadingText,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    Loading more properties...
-                  </Text>
+                  <Text style={styles.loadingText}>{loadingMessage}</Text>
                 </View>
-              )
-            )
-          }
+              );
+            }
+
+            return null;
+          }}
         />
 
         {/* Floating Action Button */}
         <Animated.View style={[styles.fabContainer, fabStyle]}>
           <FAB
             icon='magnify'
-            style={[
-              styles.fab,
-              { backgroundColor: theme.colors.primaryContainer },
-            ]}
+            style={styles.fab}
             color={theme.colors.onPrimaryContainer}
             onPress={handleSearchPress}
             label='Search'
@@ -612,145 +629,192 @@ Home.displayName = 'Home';
 
 export default Home;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  modernHeader: {
-    paddingHorizontal: designTokens.spacing.md,
-    paddingTop: designTokens.spacing.md,
-    paddingBottom: designTokens.spacing.sm,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: designTokens.spacing.md,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
-  locationText: {
-    fontSize: designTokens.typography.fontSize.sm,
-    fontWeight: '500',
-  },
-  searchBar: {
-    marginBottom: designTokens.spacing.md,
-    borderRadius: designTokens.borderRadius.xl,
-    elevation: 0,
-  },
-  searchInput: {
-    fontSize: designTokens.typography.fontSize.md,
-  },
-  filterChipsContainer: {
-    flexDirection: 'row',
-    gap: designTokens.spacing.sm,
-    marginBottom: designTokens.spacing.sm,
-  },
-  filterChip: {
-    borderRadius: designTokens.borderRadius.xl,
-  },
-  featuredSection: {
-    marginBottom: designTokens.spacing.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: designTokens.spacing.md,
-    marginBottom: designTokens.spacing.md,
-    marginTop: designTokens.spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: designTokens.typography.fontSize.xl,
-    fontWeight: designTokens.typography.fontWeight.bold,
-  },
-  propertyCount: {
-    fontSize: designTokens.typography.fontSize.sm,
-    fontWeight: designTokens.typography.fontWeight.medium,
-  },
-  carousel: {
-    borderRadius: designTokens.borderRadius.lg,
-  },
-  carouselItem: {
-    borderRadius: designTokens.borderRadius.xl,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  paginationContainer: {
-    gap: designTokens.spacing.xs,
-    marginTop: designTokens.spacing.md,
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    opacity: 0.3,
-  },
-  paginationDotActive: {
-    width: 24,
-    height: 8,
-    borderRadius: 4,
-    opacity: 1,
-  },
-  scrollableContent: {
-    paddingBottom: designTokens.spacing.xl * 3, // Extra padding for FAB
-  },
-  listItem: {
-    marginVertical: designTokens.spacing.xs,
-    marginHorizontal: designTokens.spacing.md,
-    borderRadius: designTokens.borderRadius.xl,
-  },
-  endMessage: {
-    alignItems: 'center',
-    paddingVertical: designTokens.spacing.xl,
-    paddingHorizontal: designTokens.spacing.md,
-  },
-  endText: {
-    fontSize: designTokens.typography.fontSize.md,
-    fontWeight: designTokens.typography.fontWeight.medium,
-  },
-  footerLoader: {
-    alignItems: 'center',
-    paddingVertical: designTokens.spacing.lg,
-    paddingHorizontal: designTokens.spacing.md,
-    gap: designTokens.spacing.sm,
-  },
-  loadingText: {
-    fontSize: designTokens.typography.fontSize.sm,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  errorState: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: designTokens.spacing.xl,
-    right: designTokens.spacing.md,
-  },
-  fab: {
-    borderRadius: designTokens.borderRadius.xl,
-    elevation: 6,
-  },
-});
+// Dynamic styles that use theme - using designTokens directly
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      flex: 1,
+    },
+    modernHeader: {
+      paddingHorizontal: designTokens.spacing.md,
+      paddingTop: designTokens.spacing.md,
+      paddingBottom: designTokens.spacing.sm,
+      backgroundColor: theme.colors.background,
+    },
+    headerTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: designTokens.spacing.md,
+    },
+    headerLeft: {
+      flex: 1,
+    },
+    logoText: {
+      fontSize: 28,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+      marginBottom: 4,
+      color: theme.colors.primary,
+    },
+    modeIndicator: {
+      paddingVertical: designTokens.spacing.xs,
+      marginBottom: designTokens.spacing.sm,
+    },
+    modeChip: {
+      backgroundColor: theme.colors.secondaryContainer,
+    },
+    modeChipText: {
+      fontSize: 12,
+      color: theme.colors.onSecondaryContainer,
+    },
+    locationText: {
+      fontSize: designTokens.typography.fontSize.sm,
+      fontWeight: '500',
+      color: theme.colors.onSurfaceVariant,
+    },
+    searchBar: {
+      marginBottom: designTokens.spacing.md,
+      borderRadius: designTokens.borderRadius.xl,
+      backgroundColor: theme.colors.surfaceVariant,
+      elevation: 0,
+    },
+    searchInput: {
+      fontSize: designTokens.typography.fontSize.md,
+      color: theme.colors.onSurface,
+    },
+    distanceSlider: {
+      marginBottom: designTokens.spacing.md,
+    },
+    filterLabel: {
+      fontSize: designTokens.typography.fontSize.sm,
+      fontWeight: designTokens.typography.fontWeight.medium,
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: designTokens.spacing.xs,
+    },
+    filterChipsContainer: {
+      flexDirection: 'row',
+      gap: designTokens.spacing.sm,
+      marginBottom: designTokens.spacing.sm,
+    },
+    filterChip: {
+      borderRadius: designTokens.borderRadius.xl,
+      borderColor: theme.colors.outline,
+    },
+    filterChipActive: {
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    filterChipText: {
+      color: theme.colors.onSurfaceVariant,
+      fontWeight: designTokens.typography.fontWeight.regular,
+    },
+    filterChipTextActive: {
+      color: theme.colors.onPrimaryContainer,
+      fontWeight: designTokens.typography.fontWeight.semibold,
+    },
+    featuredSection: {
+      marginBottom: designTokens.spacing.lg,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: designTokens.spacing.md,
+      marginBottom: designTokens.spacing.md,
+      marginTop: designTokens.spacing.sm,
+    },
+    sectionTitle: {
+      fontSize: designTokens.typography.fontSize.xl,
+      fontWeight: designTokens.typography.fontWeight.bold,
+      color: theme.colors.onSurface,
+    },
+    propertyCount: {
+      fontSize: designTokens.typography.fontSize.sm,
+      fontWeight: designTokens.typography.fontWeight.medium,
+      color: theme.colors.onSurfaceVariant,
+    },
+    carousel: {
+      borderRadius: designTokens.borderRadius.lg,
+    },
+    carouselItem: {
+      borderRadius: designTokens.borderRadius.xl,
+      elevation: designTokens.elevation.lg,
+      shadowColor: theme.colors.shadow,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+    },
+    paginationContainer: {
+      gap: designTokens.spacing.xs,
+      marginTop: designTokens.spacing.md,
+    },
+    paginationDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.primary,
+      opacity: 0.3,
+    },
+    paginationDotActive: {
+      width: 24,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.primary,
+      opacity: 1,
+    },
+    scrollableContent: {
+      paddingBottom: designTokens.spacing.xl * 3,
+    },
+    listItem: {
+      marginVertical: designTokens.spacing.xs,
+      marginHorizontal: designTokens.spacing.md,
+      borderRadius: designTokens.borderRadius.xl,
+    },
+    endMessage: {
+      alignItems: 'center',
+      paddingVertical: designTokens.spacing.xl,
+      paddingHorizontal: designTokens.spacing.md,
+    },
+    endText: {
+      fontSize: designTokens.typography.fontSize.md,
+      fontWeight: designTokens.typography.fontWeight.medium,
+      color: theme.colors.onSurfaceVariant,
+    },
+    footerLoader: {
+      alignItems: 'center',
+      paddingVertical: designTokens.spacing.lg,
+      paddingHorizontal: designTokens.spacing.md,
+      gap: designTokens.spacing.sm,
+    },
+    loadingText: {
+      fontSize: designTokens.typography.fontSize.sm,
+      color: theme.colors.onSurfaceVariant,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    errorState: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    centerContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fabContainer: {
+      position: 'absolute',
+      bottom: designTokens.spacing.xl,
+      right: designTokens.spacing.md,
+    },
+    fab: {
+      backgroundColor: theme.colors.primaryContainer,
+      borderRadius: designTokens.borderRadius.xl,
+      elevation: designTokens.elevation.lg,
+    },
+  });

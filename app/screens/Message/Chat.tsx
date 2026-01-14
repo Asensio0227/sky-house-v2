@@ -54,7 +54,7 @@ const ChatScreen = ({ route }: { route: any }) => {
   const [hasMore, setHasMore] = useState(true);
 
   const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
-  const { user } = useSelector((store: RootState) => store.AUTH);
+  const { currentUser: user } = useSelector((store: RootState) => store.USER);
   const senderUser = user && {
     name: user?.username || user?.fName,
     _id: user?.userId || user?._id,

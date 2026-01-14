@@ -130,11 +130,14 @@ export interface Houses {
     city?: string;
     country?: string;
   } | null;
-  listingType: 'rent' | 'sale';
+  listingType: 'rent' | 'sale' | 'all';
   distance: number;
   minPrice?: number;
   maxPrice?: number;
   furnished?: boolean;
   bedrooms?: number;
   bathrooms?: number;
+  fetchMode: 'nearby' | 'all';
+  hasMoreNearby: boolean;
+  nearbyExhausted: boolean;
 }

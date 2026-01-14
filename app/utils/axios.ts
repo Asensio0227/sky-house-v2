@@ -41,12 +41,16 @@ export const clearAuthToken = async () => {
 
 // Attach Authorization header when token is present
 customFetch.addRequestTransform((request) => {
-  if (authToken && request.headers) {
-    request.headers.Authorization = `Bearer ${authToken}`;
-    console.log('✅ Token attached to request:', request.url);
-  } else {
-    console.log('⚠️ No token available for request:', request.url);
-  }
+  // 🚨 apisauce may set headers to null
+  // if (!request.headers) {
+  //   request.headers = {};
+  // }
+  // if (authToken) {
+  //   request.headers.Authorization = `Bearer ${authToken}`;
+  //   console.log('✅ Token attached:', request.url);
+  // } else {
+  //   console.log('⚠️ No token available for request:', request.url);
+  // }
 });
 
 // ✅ FIXED: Handle responses WITHOUT auto-clearing token

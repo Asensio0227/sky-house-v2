@@ -219,7 +219,7 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
 
         ToastAndroid.show('Message sent', 1500);
       } catch (error) {
-        console.log(error);
+        console.log('Failed to send message:', error);
         ToastAndroid.show('Failed to send message', 1500);
       } finally {
         setSending(false);

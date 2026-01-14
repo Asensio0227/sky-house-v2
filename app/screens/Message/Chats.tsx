@@ -24,7 +24,7 @@ const Chats = () => {
   );
   const { page } = useSelector((store: RootUserState) => store.USER);
   const [userB, setUserB] = useState(null);
-  const { user } = useSelector((store: RootState) => store.AUTH);
+  const { currentUser: user } = useSelector((store: RootState) => store.USER);
   const dispatch: any = useDispatch<AppChatsDispatch>();
   const [isRefreshing, setIsRefreshing] = useState(false);
 

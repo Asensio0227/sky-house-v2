@@ -18,7 +18,7 @@ import Loading from '../../components/custom/Loading';
 import Form from '../../components/form/AppForm';
 import Input, { UserDocument } from '../../components/form/FormInput';
 import SubmitButton from '../../components/form/SubmitButton';
-import { signInUser } from '../../features/auth/authSlice';
+import { guestSignIn, signInUser } from '../../features/auth/authSlice';
 import { getCurrentUser } from '../../features/user/userSlice';
 import useLocation from '../../hooks/useLocation';
 import useNotifications from '../../hooks/useNotifications';
@@ -337,6 +337,30 @@ const SignIn = () => {
     }
   };
 
+  const handleGuestLogin = async () => {
+    try {
+      let userAds_address: any = { type: 'Point', coordinates: [] };
+
+      if (location && location.coords) {
+        const { longitude, latitude } = location.coords;
+        if (longitude !== undefined && latitude !== undefined) {
+          userAds_address.coordinates = [longitude, latitude];
+        }
+      }
+
+      const guestData = {
+        expoToken: expoPushToken,
+        userAds_address,
+      };
+
+      await dispatch(guestSignIn(guestData)).unwrap();
+      await dispatch(getCurrentUser()).unwrap();
+    } catch (error: any) {
+      console.error('Guest login error:', error);
+      showSnackbar('Guest login failed. Please try again.');
+    }
+  };
+
   const handleSkipLocation = () => {
     Alert.alert(
       'Skip Location Setup',
@@ -480,7 +504,7 @@ const SignIn = () => {
           {/* Guest Access Card */}
           <TouchableOpacity
             style={styles.guestCard}
-            onPress={() => showSnackbar('Guest access coming soon!')}
+            onPress={handleGuestLogin}
             activeOpacity={0.7}
           >
             <View style={styles.guestIconContainer}>

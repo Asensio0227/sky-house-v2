@@ -1,9 +1,18 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import calendar from 'dayjs/plugin/calendar';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, ToastAndroid, View } from 'react-native';
-import { Appbar, Avatar, Button, useTheme } from 'react-native-paper';
+import { Alert, StyleSheet, ToastAndroid, View } from 'react-native';
+import {
+  Appbar,
+  Avatar,
+  Button,
+  Divider,
+  Menu,
+  Text,
+  useTheme,
+} from 'react-native-paper';
 import { useDispatch } from 'react-redux';
 
 import {
@@ -15,6 +24,7 @@ import { UserDocument } from '../form/FormInput';
 import Rating from '../reviews/Rating';
 
 dayjs.extend(calendar);
+dayjs.extend(relativeTime);
 
 const UserProfile: React.FC<{
   user: UserDocument | any;
@@ -23,16 +33,25 @@ const UserProfile: React.FC<{
   items?: any;
 }> = ({ user, style, rating, items }) => {
   const theme = useTheme();
-  const date = user.lastSeen;
-  const time = `Last seen ${dayjs(date).fromNow()}`;
   const [visible, setVisible] = useState(false);
   const router: any = useRoute();
   const navigation: any = useNavigation();
   const dispatch: any = useDispatch();
   const id = router.params?._id;
 
+  // Safe null checks
+  const userName = user?.username || 'Unknown User';
+  const userAvatar = user?.avatar;
+  const userStatus = user?.status;
+  const lastSeen = user?.lastSeen;
+
   const formatPrice = (price: number) => {
-    return `$${price.toLocaleString()}`;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
   };
 
   const getPriceDisplay = () => {
@@ -40,7 +59,15 @@ const UserProfile: React.FC<{
 
     if (items.listingType === 'rent' && items.rentPrice) {
       const frequency = items.rentFrequency || 'monthly';
-      return `${formatPrice(items.rentPrice)}/${frequency.charAt(0)}`;
+      const frequencyMap: any = {
+        daily: '/day',
+        weekly: '/wk',
+        monthly: '/mo',
+        yearly: '/yr',
+      };
+      return `${formatPrice(items.rentPrice)}${
+        frequencyMap[frequency] || '/mo'
+      }`;
     }
 
     return items.price ? formatPrice(items.price) : '';
@@ -51,16 +78,31 @@ const UserProfile: React.FC<{
     return items.listingType === 'rent' ? 'For Rent' : 'For Sale';
   };
 
+  const getStatusDisplay = () => {
+    if (userStatus === 'online') return 'Online';
+    if (lastSeen) return `Last seen ${dayjs(lastSeen).fromNow()}`;
+    return 'Offline';
+  };
+
   const openMenu = () => setVisible(!visible);
 
   const markAsTaken = async () => {
     try {
-      const id = items._id;
-      await dispatch(markAdAsTaken(id));
-      ToastAndroid.showWithGravity('Ad updated successfully', 15000, 0);
+      const adId = items._id;
+      await dispatch(markAdAsTaken(adId));
+      ToastAndroid.showWithGravity(
+        'Ad marked as taken successfully',
+        ToastAndroid.LONG,
+        ToastAndroid.BOTTOM
+      );
       navigation.goBack();
     } catch (error) {
-      console.log(`Error changing ad status : ${error}`);
+      console.log(`Error changing ad status: ${error}`);
+      ToastAndroid.showWithGravity(
+        'Failed to update ad status',
+        ToastAndroid.LONG,
+        ToastAndroid.BOTTOM
+      );
     }
   };
 
@@ -69,142 +111,224 @@ const UserProfile: React.FC<{
       await dispatch(deleteAd(id));
       dispatch(removeAd(id));
       openMenu();
+      ToastAndroid.showWithGravity(
+        'Ad deleted successfully',
+        ToastAndroid.LONG,
+        ToastAndroid.BOTTOM
+      );
       navigation.goBack();
     } catch (error) {
-      console.log(`Error deleting ad : ${error}`);
+      console.log(`Error deleting ad: ${error}`);
+      ToastAndroid.showWithGravity(
+        'Failed to delete ad',
+        ToastAndroid.LONG,
+        ToastAndroid.BOTTOM
+      );
     }
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: theme.colors.surface,
+    },
+    avatarContainer: {
+      marginRight: 12,
+    },
+    infoContainer: {
+      flex: 1,
+    },
+    userSection: {
+      marginBottom: 4,
+    },
+    userName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.onSurface,
+      marginBottom: 2,
+    },
+    userStatus: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    onlineIndicator: {
+      fontSize: 12,
+      color: theme.colors.primary,
+      fontWeight: '500',
+    },
+    priceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 6,
+      marginBottom: 4,
+    },
+    price: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: theme.colors.primary,
+      marginRight: 8,
+    },
+    listingTypeBadge: {
+      fontSize: 11,
+      fontWeight: '600',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.secondaryContainer,
+      color: theme.colors.onSecondaryContainer,
+    },
+    menuButton: {
+      marginLeft: 'auto',
+    },
+    menuContainer: {
+      position: 'absolute',
+      top: 50,
+      right: 16,
+      zIndex: 1000,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      minWidth: 160,
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+    },
+    menuButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    menuButtonText: {
+      fontSize: 14,
+    },
+    deleteButton: {
+      color: theme.colors.error,
+    },
+  });
+
   return (
     <View style={[styles.container, style]}>
-      <>
-        <View>
-          {user.avatar ? (
-            <Avatar.Image size={40} source={{ uri: user.avatar }} />
-          ) : (
-            <Avatar.Text
-              size={40}
-              label={
-                user && user.username && user.username.charAt(0).toUpperCase()
-              }
-            />
-          )}
+      {/* Avatar */}
+      <View style={styles.avatarContainer}>
+        {userAvatar ? (
+          <Avatar.Image size={48} source={{ uri: userAvatar }} />
+        ) : (
+          <Avatar.Text
+            size={48}
+            label={userName.charAt(0).toUpperCase()}
+            style={{ backgroundColor: theme.colors.primaryContainer }}
+            color={theme.colors.onPrimaryContainer}
+          />
+        )}
+      </View>
+
+      {/* User Info */}
+      <View style={styles.infoContainer}>
+        <View style={styles.userSection}>
+          <Text style={styles.userName}>
+            {items?.title ? `${userName} • ${items.title}` : userName}
+          </Text>
+          <Text
+            style={
+              userStatus === 'online'
+                ? styles.onlineIndicator
+                : styles.userStatus
+            }
+          >
+            {getStatusDisplay()}
+          </Text>
         </View>
-        <View>
-          <View style={styles.section}>
-            <Text style={styles.text}>
-              {items ? `${user.username}/${items.title}` : user.username}
-            </Text>
-            <Text style={styles.status}>
-              {user.status === 'online' ? 'Online' : time}
-            </Text>
-          </View>
-          {items && (
-            <View style={styles.priceContainer}>
-              <Text style={[styles.price, { color: theme.colors.primary }]}>
-                {getPriceDisplay()}
+
+        {/* Price and Badge */}
+        {items && getPriceDisplay() && (
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>{getPriceDisplay()}</Text>
+            {getListingTypeBadge() && (
+              <Text style={styles.listingTypeBadge}>
+                {getListingTypeBadge()}
               </Text>
-              {getListingTypeBadge() && (
-                <Text
-                  style={[
-                    styles.listingType,
-                    {
-                      backgroundColor: theme.colors.secondaryContainer,
-                      color: theme.colors.onSecondaryContainer,
-                    },
-                  ]}
-                >
-                  {getListingTypeBadge()}
-                </Text>
-              )}
-            </View>
-          )}
-          <Rating rating={rating} />
-        </View>
-      </>
+            )}
+          </View>
+        )}
+
+        {/* Rating */}
+        {rating !== undefined && rating !== null && <Rating rating={rating} />}
+      </View>
+
+      {/* Menu for listing actions */}
       {router.name === 'info' && (
-        <View
-          style={{
-            position: 'relative',
-            top: -15,
-            // alignItems: 'flex-end',
-            // justifyContent: 'flex-end',
-          }}
-        >
+        <View>
           <Appbar.Action
-            icon={'menu'}
+            icon='dots-vertical'
             onPress={openMenu}
-            style={{
-              top: 10,
-              left: 0,
-              width: 80,
-            }}
+            iconColor={theme.colors.onSurface}
           />
           {visible && (
-            <View
-              style={{
-                position: 'absolute',
-                top: 40,
-                right: 0,
-                zIndex: 1,
-                padding: 6,
-                backgroundColor: theme.colors.surfaceVariant,
-                borderRadius: 5,
-                marginTop: 5,
-                alignItems: 'flex-start',
-                width: '100%',
-              }}
-            >
+            <View style={styles.menuContainer}>
               <Button
-                labelStyle={{
-                  borderBottomWidth: 1,
-                  borderColor: 'black',
-                }}
+                mode='text'
                 textColor={theme.colors.primary}
-                onPress={() => navigation.navigate('edit-Listing', items)}
+                onPress={() => {
+                  setVisible(false);
+                  navigation.navigate('edit-Listing', items);
+                }}
+                style={styles.menuButton}
+                labelStyle={styles.menuButtonText}
               >
-                Edit
+                Edit Listing
               </Button>
+              <Divider />
               <Button
-                disabled={items.taken}
-                labelStyle={{
-                  borderBottomWidth: 1,
-                  borderColor: 'black',
-                }}
+                mode='text'
                 textColor={theme.colors.primary}
-                onPress={() =>
+                disabled={items?.taken}
+                onPress={() => {
+                  setVisible(false);
                   Alert.alert(
-                    'Status',
-                    'Are you sure you want to mark this ad as taken.',
+                    'Mark as Taken',
+                    'Are you sure you want to mark this listing as taken?',
                     [
+                      { text: 'Cancel', style: 'cancel' },
                       {
-                        text: 'Yes',
+                        text: 'Mark as Taken',
                         onPress: markAsTaken,
+                        style: 'default',
                       },
-                      { text: 'No', onPress: () => openMenu },
                     ]
-                  )
-                }
+                  );
+                }}
+                style={styles.menuButton}
+                labelStyle={styles.menuButtonText}
               >
-                Taken
+                {items?.taken ? 'Already Taken' : 'Mark as Taken'}
               </Button>
+              <Divider />
               <Button
-                textColor='red'
-                onPress={() =>
+                mode='text'
+                textColor={theme.colors.error}
+                onPress={() => {
+                  setVisible(false);
                   Alert.alert(
-                    'Delete',
-                    'Are you sure you want to delete this Ad.',
+                    'Delete Listing',
+                    'Are you sure you want to delete this listing? This action cannot be undone.',
                     [
+                      { text: 'Cancel', style: 'cancel' },
                       {
-                        text: 'Yes',
+                        text: 'Delete',
                         onPress: removeFromAdList,
+                        style: 'destructive',
                       },
-                      { text: 'No', onPress: () => openMenu },
                     ]
-                  )
-                }
+                  );
+                }}
+                style={styles.menuButton}
+                labelStyle={[styles.menuButtonText, styles.deleteButton]}
               >
-                Delete
+                Delete Listing
               </Button>
             </View>
           )}
@@ -215,44 +339,3 @@ const UserProfile: React.FC<{
 };
 
 export default UserProfile;
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'flex-start',
-    // justifyContent: 'space-between',
-    justifyContent: 'flex-start',
-    flexDirection: 'row',
-    right: 35,
-    marginLeft: 8,
-  },
-  section: {
-    alignItems: 'center',
-    marginRight: 25,
-    justifyContent: 'center',
-    paddingLeft: 15,
-  },
-  text: {
-    fontSize: 18,
-  },
-  status: {
-    fontSize: 9,
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 15,
-    marginTop: 4,
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  listingType: {
-    fontSize: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-});

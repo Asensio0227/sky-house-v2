@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useRef } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   ImageBackground,
@@ -10,15 +11,23 @@ import {
   View,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../../store';
 import AppButton from '../../components/custom/AppButton';
 import AppText from '../../components/custom/AppText';
+import { guestSignIn } from '../../features/auth/authSlice';
+import { getCurrentUser } from '../../features/user/userSlice';
+import useLocation from '../../hooks/useLocation';
+import useNotifications from '../../hooks/useNotifications';
 
 const { width, height } = Dimensions.get('window');
 
 const Welcome = () => {
   const theme = useTheme();
   const navigation: any = useNavigation();
-
+  const dispatch = useDispatch<AppDispatch>();
+  const { expoPushToken } = useNotifications();
+  const { location }: any = useLocation();
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -167,6 +176,32 @@ const Welcome = () => {
     ]).start();
   }, []);
 
+  const handleGuestLogin = async () => {
+    try {
+      let userAds_address: any = { type: 'Point', coordinates: [] };
+
+      if (location && location.coords) {
+        const { longitude, latitude } = location.coords;
+        if (longitude !== undefined && latitude !== undefined) {
+          userAds_address.coordinates = [longitude, latitude];
+        }
+      }
+
+      const guestData = {
+        expoToken: expoPushToken,
+        userAds_address,
+      };
+
+      await dispatch(guestSignIn(guestData)).unwrap();
+      await dispatch(getCurrentUser()).unwrap();
+
+      // Navigation will be handled automatically by your auth flow
+    } catch (error: any) {
+      console.error('Guest login error:', error);
+      Alert.alert('Guest Login Failed', 'Please try again later.');
+    }
+  };
+
   return (
     <ImageBackground
       source={require('../../assets/small-wooden-houses-with-heart-big-one-symbolizing-family-love-security-home.jpg')}
@@ -260,13 +295,7 @@ const Welcome = () => {
         />
 
         {/* Guest Browse Option */}
-        <TouchableOpacity
-          style={styles.guestButton}
-          onPress={() => {
-            // Navigate to main app without authentication
-            console.log('Browse as guest');
-          }}
-        >
+        <TouchableOpacity style={styles.guestButton} onPress={handleGuestLogin}>
           <AppText
             title='Browse as Guest →'
             color='#FFFFFF'

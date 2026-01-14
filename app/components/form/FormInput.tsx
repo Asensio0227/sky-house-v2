@@ -15,6 +15,7 @@ const FormInput: React.FC<{
   multiline?: boolean;
   numberOfLines?: number;
   keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad';
+  onIconPress?: () => void;
   [key: string]: any;
 }> = ({
   name,
@@ -26,6 +27,7 @@ const FormInput: React.FC<{
   multiline = false,
   numberOfLines = 1,
   keyboardType = 'default',
+  onIconPress,
   ...otherProps
 }) => {
   const theme = useTheme();
@@ -39,7 +41,11 @@ const FormInput: React.FC<{
         mode={mode}
         label={label}
         placeholder={placeholder}
-        right={icon ? <TextInput.Icon icon={icon} /> : undefined}
+        right={
+          icon ? (
+            <TextInput.Icon icon={icon} onPress={onIconPress} />
+          ) : undefined
+        }
         onBlur={() => setFieldTouched(name)}
         onChangeText={(text: any) => setFieldValue(name, text)}
         multiline={multiline}

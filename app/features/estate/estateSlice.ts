@@ -30,8 +30,12 @@ const initialState: Houses = {
   error: null,
   currentLocation: null,
   manualLocation: null,
-  listingType: 'sale',
+  listingType: 'all',
   distance: 10,
+  // NEW FIELDS
+  fetchMode: 'nearby' as 'nearby' | 'all', // Track current fetch mode
+  hasMoreNearby: true, // Track if there are more nearby results
+  nearbyExhausted: false, // Track if nearby results are exhausted
 };
 
 // ============================================================================
@@ -123,6 +127,53 @@ export const createAd = createAsyncThunk(
   }
 );
 
+// export const retrieveNearbyEstates = createAsyncThunk(
+//   'estate/nearby',
+//   async (_, thunkApi: any) => {
+//     const {
+//       currentLocation,
+//       distance,
+//       listingType,
+//       page,
+//       minPrice,
+//       maxPrice,
+//       furnished,
+//       bedrooms,
+//       bathrooms,
+//     } = thunkApi.getState().ESTATE;
+
+//     const params: any = {
+//       page: String(page),
+//       distance: String(distance),
+//     };
+
+//     if (isValidCoordinates(currentLocation)) {
+//       params.latitude = String(currentLocation.latitude);
+//       params.longitude = String(currentLocation.longitude);
+//     }
+
+//     if (listingType) params.type = listingType;
+//     if (minPrice) params.minPrice = String(minPrice);
+//     if (maxPrice) params.maxPrice = String(maxPrice);
+//     if (furnished !== undefined) params.furnished = String(furnished);
+//     if (bedrooms) params.bedrooms = String(bedrooms);
+//     if (bathrooms) params.bathrooms = String(bathrooms);
+
+//     const urlParams = new URLSearchParams(params);
+//     const url = `estate/nearby?${urlParams.toString()}`;
+
+//     try {
+//       const response = await customFetch.get(url);
+//       return response.data;
+//     } catch (error: any) {
+//       console.log('❌ Caught error in thunk:', error);
+//       const errorMessage = getErrorMessage(error);
+//       console.log('📢 Returning error message:', errorMessage);
+//       return thunkApi.rejectWithValue(errorMessage);
+//     }
+//   }
+// );
+
 export const retrieveNearbyEstates = createAsyncThunk(
   'estate/nearby',
   async (_, thunkApi: any) => {
@@ -136,11 +187,30 @@ export const retrieveNearbyEstates = createAsyncThunk(
       furnished,
       bedrooms,
       bathrooms,
+      fetchMode,
+      nearbyExhausted,
     } = thunkApi.getState().ESTATE;
+
+    // DEBUG: Log current state
+    console.log('🔍 FETCH STATE:', {
+      fetchMode,
+      nearbyExhausted,
+      page,
+      currentLocation,
+    });
+
+    // Determine which mode to use
+    let currentFetchMode = fetchMode;
+
+    // If nearby is exhausted, switch to 'all' mode
+    if (nearbyExhausted) {
+      currentFetchMode = 'all';
+    }
 
     const params: any = {
       page: String(page),
       distance: String(distance),
+      fetchMode: currentFetchMode, // CRITICAL: Send the correct mode
     };
 
     if (isValidCoordinates(currentLocation)) {
@@ -148,7 +218,7 @@ export const retrieveNearbyEstates = createAsyncThunk(
       params.longitude = String(currentLocation.longitude);
     }
 
-    if (listingType) params.type = listingType;
+    if (listingType) params.listingType = listingType; // FIX: was 'type'
     if (minPrice) params.minPrice = String(minPrice);
     if (maxPrice) params.maxPrice = String(maxPrice);
     if (furnished !== undefined) params.furnished = String(furnished);
@@ -498,6 +568,9 @@ const estateSlice = createSlice({
       state.page = 1;
       state.hasMore = true;
       state.error = null;
+      state.fetchMode = 'nearby'; // Reset to nearby mode
+      state.nearbyExhausted = false;
+      state.hasMoreNearby = true;
     },
     setIsReFreshing: (state, action) => {
       state.isRefreshing = action.payload;
@@ -506,47 +579,65 @@ const estateSlice = createSlice({
       state.currentLocation = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby'; // Reset to nearby mode
+      state.nearbyExhausted = false;
     },
     setManualLocation: (state, action) => {
       state.manualLocation = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     clearManualLocation: (state) => {
       state.manualLocation = null;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     setListingType: (state, action) => {
       state.listingType = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     setDistance: (state, action) => {
       state.distance = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     setPriceRange: (state, action) => {
       state.minPrice = action.payload.minPrice;
       state.maxPrice = action.payload.maxPrice;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     setFurnished: (state, action) => {
       state.furnished = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     setBedrooms: (state, action) => {
       state.bedrooms = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     setBathrooms: (state, action) => {
       state.bathrooms = action.payload;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     clearAllFilters: (state) => {
       state.listingType = 'sale';
@@ -558,6 +649,8 @@ const estateSlice = createSlice({
       state.bathrooms = undefined;
       state.page = 1;
       state.houses = [];
+      state.fetchMode = 'nearby';
+      state.nearbyExhausted = false;
     },
     removeAd: (state, action) => {
       const idToRemove = action.payload;
@@ -877,12 +970,58 @@ const estateSlice = createSlice({
       });
 
     // RETRIEVE NEARBY ESTATES
+    // builder
+    //   .addCase(retrieveNearbyEstates.pending, (state) => {
+    //     if (state.page === 1) {
+    //       state.isLoading = true;
+    //     }
+    //     state.error = null;
+    //   })
+    //   .addCase(retrieveNearbyEstates.fulfilled, (state, action: any) => {
+    //     state.isLoading = false;
+    //     const {
+    //       ads = [],
+    //       numOfPages = 0,
+    //       total = 0,
+    //       page: currentPage = 1,
+    //     } = action.payload || {};
+
+    //     if (currentPage === 1) {
+    //       // First page - replace all
+    //       state.houses = ads;
+    //     } else {
+    //       // Subsequent pages - merge without duplicates
+    //       state.houses = mergeUniqueEstates(state.houses, ads);
+    //     }
+
+    //     state.numOfPages = numOfPages;
+    //     state.totalAds = total;
+    //     state.hasMore = currentPage < numOfPages;
+    //     state.page = currentPage + 1;
+
+    //     state.featuredAds = state.houses.filter(
+    //       (item: UIEstateDocument) => item.featured
+    //     );
+    //   })
+    //   .addCase(retrieveNearbyEstates.rejected, (state, action: any) => {
+    //     state.isLoading = false;
+    //     state.hasMore = false;
+    //     state.error = action.payload;
+    //     ToastAndroid.showWithGravity(`Error: ${action.payload}`, 15000, 0);
+    //   });
     builder
       .addCase(retrieveNearbyEstates.pending, (state) => {
         if (state.page === 1) {
           state.isLoading = true;
         }
         state.error = null;
+
+        console.log(
+          '⏳ Fetch pending. Mode:',
+          state.fetchMode,
+          'Page:',
+          state.page
+        );
       })
       .addCase(retrieveNearbyEstates.fulfilled, (state, action: any) => {
         state.isLoading = false;
@@ -891,10 +1030,11 @@ const estateSlice = createSlice({
           numOfPages = 0,
           total = 0,
           page: currentPage = 1,
+          isNearbyData = false,
+          hasMoreNearby = false,
         } = action.payload || {};
-
-        if (currentPage === 1) {
-          // First page - replace all
+        // Handle first page - replace all data
+        if (currentPage === 1 && state.page === 1) {
           state.houses = ads;
         } else {
           // Subsequent pages - merge without duplicates
@@ -903,9 +1043,35 @@ const estateSlice = createSlice({
 
         state.numOfPages = numOfPages;
         state.totalAds = total;
-        state.hasMore = currentPage < numOfPages;
-        state.page = currentPage + 1;
+        state.hasMoreNearby = hasMoreNearby;
 
+        // CRITICAL LOGIC: Determine next fetch mode and page
+        if (state.fetchMode === 'nearby') {
+          if (isNearbyData) {
+            if (hasMoreNearby) {
+              // Still have nearby results
+              state.page = currentPage + 1;
+              state.hasMore = true;
+            } else {
+              // No more nearby results - switch to 'all' mode
+              state.nearbyExhausted = true;
+              state.fetchMode = 'all';
+              state.page = 1; // RESET page for 'all' mode
+              state.hasMore = true; // Assume there are 'all' results to fetch
+            }
+          } else {
+            // Got results but not from nearby (backend already switched)
+            state.nearbyExhausted = true;
+            state.fetchMode = 'all';
+            state.page = currentPage + 1;
+            state.hasMore = currentPage < numOfPages;
+          }
+        } else if (state.fetchMode === 'all') {
+          // Already in 'all' mode
+          state.page = currentPage + 1;
+          state.hasMore = currentPage < numOfPages;
+        }
+        // Update featured ads
         state.featuredAds = state.houses.filter(
           (item: UIEstateDocument) => item.featured
         );
@@ -914,6 +1080,7 @@ const estateSlice = createSlice({
         state.isLoading = false;
         state.hasMore = false;
         state.error = action.payload;
+        console.log('❌ Fetch rejected:', action.payload);
         ToastAndroid.showWithGravity(`Error: ${action.payload}`, 15000, 0);
       });
 

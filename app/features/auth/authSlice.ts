@@ -193,6 +193,22 @@ export const expoPushNotification = createAsyncThunk(
   }
 );
 
+// guest login
+export const guestSignIn = createAsyncThunk(
+  'auth/guest-login',
+  async (data: { expoToken?: string; userAds_address?: any }, thunkApi) => {
+    try {
+      const response: any = await customFetch.post('auth/guest-login', data);
+      if (!response.ok) {
+        throw new Error(response.data.msg);
+      }
+      return response.data;
+    } catch (error: any) {
+      return thunkApi.rejectWithValue(`Error guest sign-in: ${error}`);
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'AUTH',
   initialState,
@@ -358,6 +374,25 @@ const authSlice = createSlice({
       .addCase(expoPushNotification.rejected, (state, action: any) => {
         state.isLoading = false;
         console.log('Expo token error:', action.payload);
+      });
+    // guest login
+    builder
+      .addCase(guestSignIn.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(guestSignIn.fulfilled, (state, action: any) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.accessToken = action.payload.accessToken || null;
+        console.log('✅ Guest signed in successfully');
+        ToastAndroid.showWithGravity('Welcome, Guest!', 2000, 0);
+      })
+      .addCase(guestSignIn.rejected, (state, action: any) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.error = action.payload;
+        ToastAndroid.showWithGravity(action.payload, 2000, 0);
       });
   },
 });
