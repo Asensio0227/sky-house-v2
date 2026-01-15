@@ -4,12 +4,12 @@ import 'react-native-get-random-values';
 
 import { useFocusEffect } from '@react-navigation/native';
 import { AudioRecorder as ExpoAudioRecorder } from 'expo-audio';
+import { Image } from 'expo-image';
 import { VideoView } from 'expo-video';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -323,7 +323,13 @@ const ChatScreen = ({ route }: { route: any }) => {
                 borderRadius: 12,
                 marginBottom: 8,
               }}
-              resizeMode='cover'
+              placeholder={{
+                blurhash: img.url?.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+              }}
+              contentFit='cover'
+              transition={200}
+              cachePolicy='memory-disk'
+              priority='high'
             />
           ))}
           {renderText()}

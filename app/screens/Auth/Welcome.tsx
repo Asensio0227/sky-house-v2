@@ -28,6 +28,7 @@ const Welcome = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { expoPushToken } = useNotifications();
   const { location }: any = useLocation();
+
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -61,14 +62,22 @@ const Welcome = () => {
     },
     logoIcon: {
       fontSize: 40,
+      // ✅ Fix for emoji rendering
+      includeFontPadding: false,
+      textAlignVertical: 'center',
     },
     brandName: {
       fontSize: 36,
       fontWeight: 'bold',
       letterSpacing: 1.2,
+      // ✅ Improved text shadow that doesn't clip
       textShadowColor: 'rgba(0, 0, 0, 0.75)',
       textShadowOffset: { width: 0, height: 2 },
       textShadowRadius: 8,
+      // ✅ Fix for text clipping
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      paddingVertical: 4, // Extra padding to prevent clipping
     },
     taglineSection: {
       flex: 1,
@@ -84,6 +93,10 @@ const Welcome = () => {
       textShadowColor: 'rgba(0, 0, 0, 0.75)',
       textShadowOffset: { width: 0, height: 2 },
       textShadowRadius: 8,
+      // ✅ Fix for text clipping
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      paddingVertical: 4,
     },
     subTagline: {
       fontSize: 18,
@@ -94,6 +107,10 @@ const Welcome = () => {
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 4,
       color: theme.colors.secondary,
+      // ✅ Fix for text clipping
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      paddingVertical: 4,
     },
     featuresContainer: {
       flexDirection: 'row',
@@ -113,6 +130,10 @@ const Welcome = () => {
     featureText: {
       fontSize: 12,
       fontWeight: '600',
+      // ✅ Fix for text clipping in pills
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      paddingVertical: 2,
     },
     sectionCenter: {
       padding: 24,
@@ -142,6 +163,10 @@ const Welcome = () => {
       fontWeight: '500',
       textDecorationLine: 'underline',
       opacity: 0.9,
+      // ✅ Fix for text clipping
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      paddingVertical: 2,
     },
   });
 
@@ -223,7 +248,7 @@ const Welcome = () => {
         ]}
       >
         <View style={styles.logoContainer}>
-          <AppText title='🏠' style={styles.logoIcon} />
+          <AppText title='🏡' style={styles.logoIcon} />
         </View>
         <AppText title='Sky Housing' color='#FFFFFF' style={styles.brandName} />
       </Animated.View>

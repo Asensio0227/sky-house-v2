@@ -6,14 +6,14 @@ import { RootState } from '../../../store';
 import Loading from '../../components/custom/Loading';
 import Setup from '../../components/custom/Setup';
 import { UserDocument } from '../../components/form/FormInput';
-import { updateCurrentUser } from '../../features/user/userSlice'; // ✅ Changed import
+import { updateCurrentUser } from '../../features/user/userSlice';
 
 const validateSchema = Yup.object().shape({
-  avatar: Yup.string().required('UserProfile is required'),
+  avatar: Yup.string().required('Profile photo is required'),
   first_name: Yup.string().required('First name is required'),
   last_name: Yup.string().required('Last name is required'),
   username: Yup.string().required('Username is required'),
-  email: Yup.string().email().required('Email is required'),
+  // ✅ Email is not editable in edit mode, but we still need it in the form
   phone_number: Yup.string()
     .matches(
       /(?:(?<internationCode>\+[1-9]{1,4})[ -])?\(?(?<areacode>\d{2,3})\)?[ -]?(\d{3})[ -]?(\d{4})/,
@@ -27,7 +27,7 @@ const validateSchema = Yup.object().shape({
   province: Yup.string().required('Province is required'),
   postal_code: Yup.string().required('Postal code is required'),
   country: Yup.string().required('Country is required'),
-  ideaNumber: Yup.string().required('Idea number is required'),
+  ideaNumber: Yup.string().required('ID number is required'),
 });
 
 const EditProfile = () => {
@@ -36,16 +36,19 @@ const EditProfile = () => {
   const navigation: any = useNavigation();
   const dispatch: any = useDispatch();
 
-  // ✅ Get loading state from USER slice
   const { isLoading } = useSelector((store: RootState) => store.USER);
 
   const onSubmit = async (item: UserDocument) => {
+    // ✅ Ensure email is included in the submission
+    const submissionData = {
+      ...item,
+      email: user.email, // Always include the original email
+    };
     try {
-      // ✅ Use updateCurrentUser instead of updateUser
-      await dispatch(updateCurrentUser(item)).unwrap();
+      const result = await dispatch(updateCurrentUser(submissionData)).unwrap();
       navigation.goBack();
     } catch (error: any) {
-      console.log(`Error while updating user: ${error.message || error}`);
+      console.log('❌ Error while updating user:', error.message || error);
     }
   };
 
@@ -67,6 +70,8 @@ const EditProfile = () => {
         postal_code: user.physical_address?.postal_code || '',
         country: user.physical_address?.country || '',
         ideaNumber: user.ideaNumber || '',
+        // ✅ Don't include email in initialValues since it's not editable
+        // But we'll add it back in onSubmit
       }}
       validationSchema={validateSchema}
       onSubmit={onSubmit}

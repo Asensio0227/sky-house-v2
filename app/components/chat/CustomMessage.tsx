@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { VideoView } from 'expo-video';
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Message } from 'react-native-gifted-chat';
 import { useTheme } from 'react-native-paper';
 import AudioPlayer from '../AudioPlayer';
@@ -68,7 +69,13 @@ const CustomMessage: React.FC<any> = ({ props, senderId }) => {
               borderRadius: 12,
               marginBottom: 8,
             }}
-            resizeMode='cover'
+            placeholder={{
+              blurhash: img.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+            }}
+            contentFit='cover'
+            transition={200}
+            cachePolicy='memory-disk'
+            priority='high'
           />
         ))}
         {renderText()}

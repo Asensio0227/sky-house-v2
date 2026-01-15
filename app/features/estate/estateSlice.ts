@@ -87,6 +87,132 @@ const isValidCoordinates = (location: any): boolean => {
   );
 };
 
+/**
+ * Update estate in all state locations WITHOUT creating duplicates
+ * This function ONLY modifies existing items, never adds new ones
+ *
+ * @param state - Redux state
+ * @param estateId - ID of the estate to update
+ * @param updates - Partial updates to apply
+ */
+const updateEstateInState = (
+  state: any,
+  estateId: string,
+  updates: Partial<UIEstateDocument>
+) => {
+  // Validate inputs
+  if (!estateId || !updates || Object.keys(updates).length === 0) {
+    console.warn('⚠️ Invalid update parameters:', { estateId, updates });
+    return;
+  }
+
+  // Helper to safely match estate ID
+  const matchesId = (estate: UIEstateDocument | null | undefined): boolean => {
+    if (!estate) return false;
+    const id = getEstateId(estate);
+    return id === estateId;
+  };
+
+  // Helper to create updated estate (immutable)
+  const updateEstate = (estate: UIEstateDocument): UIEstateDocument => ({
+    ...estate,
+    ...updates,
+    // Preserve critical fields that shouldn't be overwritten
+    _id: estate._id,
+    id: estate.id,
+  });
+
+  // Track what was updated (for debugging)
+  const updatedLocations: string[] = [];
+
+  // 1. Update in houses array (main listing feed)
+  const houseIndex = state.houses.findIndex(matchesId);
+  if (houseIndex !== -1) {
+    state.houses[houseIndex] = updateEstate(state.houses[houseIndex]);
+    updatedLocations.push('houses');
+  }
+
+  // 2. Update in userAds array (user's own listings)
+  const userAdIndex = state.userAds.findIndex(matchesId);
+  if (userAdIndex !== -1) {
+    state.userAds[userAdIndex] = updateEstate(state.userAds[userAdIndex]);
+    updatedLocations.push('userAds');
+  }
+
+  // 3. Update in filteredHouses array (search/filter results)
+  const filteredIndex = state.filteredHouses.findIndex(matchesId);
+  if (filteredIndex !== -1) {
+    state.filteredHouses[filteredIndex] = updateEstate(
+      state.filteredHouses[filteredIndex]
+    );
+    updatedLocations.push('filteredHouses');
+  }
+
+  // 4. Update in featuredAds array (featured carousel)
+  const featuredIndex = state.featuredAds.findIndex(matchesId);
+  if (featuredIndex !== -1) {
+    state.featuredAds[featuredIndex] = updateEstate(
+      state.featuredAds[featuredIndex]
+    );
+    updatedLocations.push('featuredAds');
+  }
+
+  // 5. Update singleHouse (detail view)
+  if (state.singleHouse && matchesId(state.singleHouse)) {
+    state.singleHouse = updateEstate(state.singleHouse);
+    updatedLocations.push('singleHouse');
+  }
+
+  // 6. Update singleHouseWithComments (detail view with reviews)
+  if (
+    state.singleHouseWithComments?.ad &&
+    matchesId(state.singleHouseWithComments.ad)
+  ) {
+    state.singleHouseWithComments.ad = updateEstate(
+      state.singleHouseWithComments.ad
+    );
+    updatedLocations.push('singleHouseWithComments.ad');
+  }
+
+  // Debug logging in development
+  if (__DEV__) {
+    console.log(`✅ Updated estate ${estateId} in:`, updatedLocations);
+    if (updatedLocations.length === 0) {
+      console.warn(`⚠️ Estate ${estateId} not found in any state location`);
+    }
+  }
+};
+
+/**
+ * Check for duplicates in an array (for debugging/testing)
+ * Call this after updates in development to verify no duplicates
+ */
+const checkForDuplicates = (
+  array: UIEstateDocument[],
+  arrayName: string
+): void => {
+  if (!__DEV__) return; // Only run in development
+
+  const ids = new Set<string>();
+  const duplicates: string[] = [];
+
+  array.forEach((item) => {
+    const id = getEstateId(item);
+    if (id) {
+      if (ids.has(id)) {
+        duplicates.push(id);
+      }
+      ids.add(id);
+    }
+  });
+
+  if (duplicates.length > 0) {
+    console.error(`🚨 DUPLICATES FOUND in ${arrayName}:`, duplicates);
+  } else {
+    console.log(`✅ No duplicates in ${arrayName} (${array.length} items)`);
+  }
+};
+
 // ============================================================================
 // ASYNC THUNKS
 // ============================================================================
@@ -540,6 +666,61 @@ export const updateUserManualLocation = createAsyncThunk(
       console.log('❌ Caught error in thunk:', error);
       const errorMessage = getErrorMessage(error);
       console.log('📢 Returning error message:', errorMessage);
+      return thunkApi.rejectWithValue(errorMessage);
+    }
+  }
+);
+
+// ============================================================================
+// INCREMENT AD VIEW COUNT
+// ============================================================================
+export const incrementAdView = createAsyncThunk(
+  'estate/increment-view',
+  async (estateId: string, thunkApi) => {
+    try {
+      const response: any = await customFetch.post(
+        `estate/ads/${estateId}/view`
+      );
+
+      if (!response.ok) {
+        throw new Error(response.data.msg || 'Failed to increment view count');
+      }
+
+      return {
+        estateId,
+        viewsCount: response.data.viewsCount,
+      };
+    } catch (error: any) {
+      console.log('❌ Caught error in incrementAdView:', error);
+      const errorMessage = getErrorMessage(error);
+      return thunkApi.rejectWithValue(errorMessage);
+    }
+  }
+);
+
+// ============================================================================
+// TOGGLE LIKE AD
+// ============================================================================
+export const toggleLikeAd = createAsyncThunk(
+  'estate/toggle-like',
+  async (estateId: string, thunkApi) => {
+    try {
+      const response: any = await customFetch.post(
+        `estate/ads/${estateId}/like`
+      );
+
+      if (!response.ok) {
+        throw new Error(response.data.msg || 'Failed to toggle like');
+      }
+
+      return {
+        estateId,
+        liked: response.data.liked,
+        likeCount: response.data.likeCount,
+      };
+    } catch (error: any) {
+      console.log('❌ Caught error in toggleLikeAd:', error);
+      const errorMessage = getErrorMessage(error);
       return thunkApi.rejectWithValue(errorMessage);
     }
   }
@@ -1152,6 +1333,62 @@ const estateSlice = createSlice({
         state.hasMore = false;
         state.error = action.payload;
         ToastAndroid.showWithGravity(`Error: ${action.payload}`, 15000, 0);
+      });
+
+    // ✅ INCREMENT AD VIEW
+    builder
+      .addCase(incrementAdView.pending, (state) => {
+        // Silently increment - don't show loading
+      })
+      .addCase(incrementAdView.fulfilled, (state, action: any) => {
+        const { estateId, viewsCount } = action.payload;
+        updateEstateInState(state, estateId, { viewsCount });
+        // Optional: Check for duplicates in development
+        if (__DEV__) {
+          checkForDuplicates(state.houses, 'houses');
+          checkForDuplicates(state.userAds, 'userAds');
+          checkForDuplicates(state.featuredAds, 'featuredAds');
+        }
+      })
+      .addCase(incrementAdView.rejected, (state, action: any) => {
+        // Silently fail - view counts are not critical
+        if (__DEV__) {
+          console.log('Failed to increment view count:', action.payload);
+        }
+      });
+
+    // ✅ TOGGLE LIKE AD
+    builder
+      .addCase(toggleLikeAd.pending, (state) => {
+        // Optionally set a loading indicator
+      })
+      .addCase(toggleLikeAd.fulfilled, (state, action: any) => {
+        const { estateId, liked, likeCount } = action.payload;
+
+        updateEstateInState(state, estateId, {
+          likeCount,
+          isLiked: liked,
+        });
+
+        // Optional: Check for duplicates in development
+        if (__DEV__) {
+          checkForDuplicates(state.houses, 'houses');
+          checkForDuplicates(state.userAds, 'userAds');
+          checkForDuplicates(state.featuredAds, 'featuredAds');
+        }
+
+        ToastAndroid.showWithGravity(
+          liked ? '❤️ Added to favorites' : 'Removed from favorites',
+          2000,
+          0
+        );
+      })
+      .addCase(toggleLikeAd.rejected, (state, action: any) => {
+        ToastAndroid.showWithGravity(
+          action.payload || 'Failed to update like status',
+          2000,
+          0
+        );
       });
   },
 });

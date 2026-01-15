@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, TextInput, View } from 'react-native';
 import {
   ActivityIndicator,
   Button as AppButton,
@@ -88,7 +89,17 @@ const MediaPreviewModal = ({
             ]}
           >
             {typeof media?.uri === 'string' && media.uri.trim() !== '' && (
-              <Image source={{ uri: media.uri }} style={styles.media} />
+              <Image
+                source={{ uri: media.uri }}
+                style={styles.media}
+                placeholder={{
+                  blurhash: media.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+                }}
+                contentFit='cover'
+                transition={200}
+                cachePolicy='memory-disk'
+                priority='high'
+              />
             )}
             <TextInput
               value={pendingText}

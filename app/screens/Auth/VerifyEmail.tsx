@@ -1,8 +1,7 @@
-// VerifyEmail.tsx
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Surface, useTheme } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
 import * as Yup from 'yup';
 import { AppDispatch, RootState } from '../../../store';
@@ -14,6 +13,7 @@ import FormInput from '../../components/form/FormInput';
 import ResetInput from '../../components/form/ResetInput';
 import SubmitButton from '../../components/form/SubmitButton';
 import { resendAccountCode, verifyEmail } from '../../features/auth/authSlice';
+import { designTokens } from '../../utils/designTokens';
 
 const VerifyEmail = () => {
   const theme = useTheme();
@@ -25,43 +25,79 @@ const VerifyEmail = () => {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
       backgroundColor: theme.colors.background,
-      padding: 20,
     },
-    inputContainer: {
-      width: '90%',
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: designTokens.spacing.lg,
+    },
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: designTokens.borderRadius.xl,
+      padding: designTokens.spacing.xl,
+      elevation: 4,
+      shadowColor: theme.colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: designTokens.spacing.xl,
+    },
+    iconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: theme.colors.primaryContainer,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: designTokens.spacing.md,
+    },
+    icon: {
+      fontSize: 40,
     },
     title: {
-      fontSize: 15,
-      fontWeight: 'bold',
-      marginBottom: 10,
-      textDecorationLine: 'underline',
-      color: theme.colors.onBackground,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.colors.outline,
+      fontSize: 24,
+      fontWeight: '700',
+      marginBottom: designTokens.spacing.xs,
+      color: theme.colors.onSurface,
       textAlign: 'center',
-      fontSize: 10,
-      padding: 3,
-      borderRadius: 5,
-      width: '100%',
-      backgroundColor: theme.colors.surface,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    infoBox: {
+      backgroundColor: theme.colors.primaryContainer,
+      borderRadius: designTokens.borderRadius.md,
+      padding: designTokens.spacing.md,
+      marginBottom: designTokens.spacing.lg,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.colors.primary,
+    },
+    infoText: {
+      fontSize: 13,
+      color: theme.colors.onPrimaryContainer,
+      lineHeight: 18,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: theme.colors.outlineVariant,
+      marginVertical: designTokens.spacing.lg,
     },
     resendContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignContent: 'center',
+      alignItems: 'center',
+      marginTop: designTokens.spacing.md,
     },
-    buttonStyle: {
-      color: theme.colors.primary,
-      textDecorationLine: 'underline',
-      alignContent: 'center',
-      justifyContent: 'center',
+    resendButton: {
+      marginTop: designTokens.spacing.sm,
+    },
+    backButton: {
+      marginTop: designTokens.spacing.lg,
     },
   });
 
@@ -69,21 +105,19 @@ const VerifyEmail = () => {
 
   const handleChange = async (data: any) => {
     try {
-      await dispatch(verifyEmail(data));
+      await dispatch(verifyEmail(data)).unwrap();
+      navigation.navigate('welcome');
     } catch (error: any) {
       console.log(`Error submitting code: ${error.message}`);
-    } finally {
-      navigation.navigate('welcome');
     }
   };
 
-  const handleResend = async (email: string) => {
+  const handleResend = async (values: { email: string }) => {
     try {
-      await dispatch(resendAccountCode(email));
-    } catch (error: any) {
-      console.log(`Error submitting code: ${error.message}`);
-    } finally {
+      await dispatch(resendAccountCode(values)).unwrap();
       setResend(false);
+    } catch (error: any) {
+      console.log(`Error resending code: ${error.message}`);
     }
   };
 
@@ -91,66 +125,123 @@ const VerifyEmail = () => {
 
   return (
     <View style={styles.container}>
-      {!resend ? (
-        <>
-          <AppForm
-            initialValues={{ email: '', token: '' }}
-            validationSchema={Yup.object().shape({
-              token: Yup.string()
-                .required('Please enter verification code.')
-                .length(6, 'Code must be exactly 6 characters long'),
-              email: Yup.string().email().required('Please enter your email.'),
-            })}
-            style={styles.inputContainer}
-            onSubmit={handleChange}
-          >
-            <AppText
-              style={styles.title}
-              title='Enter your code'
-              color={theme.colors.onBackground}
-            />
-            <FormInput
-              name='email'
-              icon='email'
-              label='Email'
-              placeholder='Email'
-            />
-            <FormInput
-              name='token'
-              icon='two-factor-authentication'
-              placeholder='Code...'
-            />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps='handled'
+      >
+        <Surface style={styles.card}>
+          {!resend ? (
+            <>
+              {/* Header Section */}
+              <View style={styles.header}>
+                <View style={styles.iconContainer}>
+                  <AppText title='✉️' style={styles.icon} />
+                </View>
+                <AppText title='Verify Your Email' style={styles.title} />
+                <AppText
+                  title='Enter the 6-digit code sent to your email address'
+                  style={styles.subtitle}
+                />
+              </View>
 
-            <SubmitButton title='verify email' />
-          </AppForm>
-          <View>
-            <AppButton
-              title="i haven't received code? resend code"
-              onPress={toggleBtn}
-              mode='text'
-              style={styles.buttonStyle}
-            />
-          </View>
-        </>
-      ) : (
-        <View style={styles.resendContainer}>
-          <ResetInput
-            initialValues={{ email: '' }}
-            validateSchema={Yup.object().shape({
-              email: Yup.string().email().required('Please enter your email.'),
-            })}
-            onPress={handleResend}
-            title='resend code'
-            subTitle='Enter email to resend code'
-          />
-          <AppButton
-            title='Go back to verify email'
-            onPress={toggleBtn}
-            mode='text'
-            style={styles.buttonStyle}
-          />
-        </View>
-      )}
+              {/* Info Box */}
+              <View style={styles.infoBox}>
+                <AppText
+                  title="💡 Check your spam folder if you don't see the email"
+                  style={styles.infoText}
+                />
+              </View>
+
+              {/* Form Section */}
+              <AppForm
+                initialValues={{ email: '', token: '' }}
+                validationSchema={Yup.object().shape({
+                  token: Yup.string()
+                    .required('Please enter verification code.')
+                    .length(6, 'Code must be exactly 6 characters long'),
+                  email: Yup.string()
+                    .email('Please enter a valid email')
+                    .required('Please enter your email.'),
+                })}
+                onSubmit={handleChange}
+              >
+                <FormInput
+                  name='email'
+                  icon='email'
+                  label='Email Address'
+                  placeholder='your@email.com'
+                  keyboardType='email-address'
+                  autoCapitalize='none'
+                />
+
+                <FormInput
+                  name='token'
+                  icon='shield-key'
+                  label='Verification Code'
+                  placeholder='Enter 6-digit code'
+                  keyboardType='number-pad'
+                  maxLength={6}
+                />
+
+                <SubmitButton title='Verify Email' />
+              </AppForm>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* Resend Section */}
+              <View style={styles.resendContainer}>
+                <AppText
+                  title="Didn't receive the code?"
+                  style={styles.subtitle}
+                />
+                <AppButton
+                  title='Resend Verification Code'
+                  onPress={toggleBtn}
+                  mode='text'
+                  style={styles.resendButton}
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              {/* Resend Header */}
+              <View style={styles.header}>
+                <View style={styles.iconContainer}>
+                  <AppText title='🔄' style={styles.icon} />
+                </View>
+                <AppText title='Resend Code' style={styles.title} />
+                <AppText
+                  title='Enter your email to receive a new verification code'
+                  style={styles.subtitle}
+                />
+              </View>
+
+              {/* Resend Form */}
+              <ResetInput
+                initialValues={{ email: '' }}
+                validateSchema={Yup.object().shape({
+                  email: Yup.string()
+                    .email('Please enter a valid email')
+                    .required('Please enter your email.'),
+                })}
+                onPress={handleResend}
+                title='Send New Code'
+                subTitle="We'll send a fresh verification code to this email"
+              />
+
+              {/* Back Button */}
+              <AppButton
+                title='← Back to Verification'
+                onPress={toggleBtn}
+                mode='outlined'
+                style={styles.backButton}
+              />
+            </>
+          )}
+        </Surface>
+      </ScrollView>
     </View>
   );
 };

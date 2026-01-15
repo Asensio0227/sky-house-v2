@@ -1,9 +1,9 @@
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +13,7 @@ import { Chip, useTheme } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { UIEstateDocument } from '../features/estate/types';
 import { designTokens } from '../utils/designTokens';
+import { formatNumber } from '../utils/globals';
 
 const { width } = Dimensions.get('window');
 
@@ -37,6 +38,8 @@ const Estate: React.FC<EstateProps> = React.memo(
       bedrooms,
       bathrooms,
       furnished,
+      viewsCount,
+      likeCount,
     } = items;
 
     // Animation refs
@@ -121,7 +124,14 @@ const Estate: React.FC<EstateProps> = React.memo(
             <Image
               style={styles.image}
               source={{ uri: photo[0]?.url }}
-              resizeMode='cover'
+              placeholder={{
+                blurhash:
+                  photo[0]?.url?.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+              }}
+              contentFit='cover'
+              transition={200}
+              cachePolicy='memory-disk'
+              priority='high'
               accessibilityLabel='Property image'
             />
 
@@ -162,7 +172,6 @@ const Estate: React.FC<EstateProps> = React.memo(
                       : require('../assets/user-icon.png')
                   }
                   style={styles.userAvatar}
-                  accessibilityLabel={`${username}'s profile picture`}
                 />
                 <View style={styles.userInfo}>
                   <Text style={styles.username} numberOfLines={1}>
@@ -171,6 +180,28 @@ const Estate: React.FC<EstateProps> = React.memo(
                   <Text style={styles.categoryText}>{category}</Text>
                 </View>
               </View>
+
+              {/* ADDED: Stats Row */}
+              {(viewsCount > 0 || likeCount > 0) && (
+                <View style={styles.statsRow}>
+                  {viewsCount > 0 && (
+                    <View style={styles.statBadge}>
+                      <Ionicons name='eye-outline' size={14} color='#fff' />
+                      <Text style={styles.statText}>
+                        {formatNumber(viewsCount)}
+                      </Text>
+                    </View>
+                  )}
+                  {likeCount > 0 && (
+                    <View style={styles.statBadge}>
+                      <Ionicons name='heart' size={14} color='#FF4081' />
+                      <Text style={styles.statText}>
+                        {formatNumber(likeCount)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* Property Title */}
               <Text style={styles.title} numberOfLines={2}>
@@ -402,6 +433,25 @@ const styles = StyleSheet.create({
   viewButtonText: {
     fontSize: 14,
     fontWeight: '700',
+    color: '#fff',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: designTokens.spacing.sm,
+    marginBottom: designTokens.spacing.xs,
+  },
+  statBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: designTokens.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: designTokens.borderRadius.md,
+    gap: 4,
+  },
+  statText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: '#fff',
   },
 });

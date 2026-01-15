@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { useTheme } from 'react-native-paper';
+import { designTokens } from '../../utils/designTokens';
 import AppText from '../custom/AppText';
 import AppForm from './AppForm';
 import FormInput from './FormInput';
@@ -19,15 +20,21 @@ const ResetInput: React.FC<{
     <AppForm
       initialValues={initialValues}
       validationSchema={validateSchema}
-      style={styles.inputContainer}
       onSubmit={onPress}
     >
       <AppText
-        style={[styles.subtitle, { color: theme.colors.onSurface }]}
+        style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
         title={subTitle}
       />
-      <FormInput name='email' icon='email' label='Email' placeholder='Email' />
-      <SubmitButton title={title} />
+      <FormInput
+        name='email'
+        icon='email'
+        label='Email Address'
+        placeholder='your@email.com'
+        keyboardType='email-address'
+        autoCapitalize='none'
+      />
+      <SubmitButton title={title} style={styles.submitButton} />
     </AppForm>
   );
 };
@@ -35,15 +42,13 @@ const ResetInput: React.FC<{
 export default ResetInput;
 
 const styles = StyleSheet.create({
-  inputContainer: {
-    fontSize: 24,
-    width: '90%',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
   subtitle: {
-    fontSize: 15,
-    textDecorationLine: 'underline',
-    marginBottom: 16,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: designTokens.spacing.lg,
+    lineHeight: 20,
+  },
+  submitButton: {
+    marginTop: designTokens.spacing.md,
   },
 });

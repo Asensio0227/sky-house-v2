@@ -2,11 +2,11 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useRef, useState } from 'react';
+import { Image } from 'expo-image';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
   Share,
   StyleSheet,
   ToastAndroid,
@@ -33,10 +33,11 @@ import {
   createMsg,
   updateConversation,
 } from '../features/chats/chatsSlice';
+import { incrementAdView, toggleLikeAd } from '../features/estate/estateSlice';
 import { IPhoto, UIEstateDocument } from '../features/estate/types';
 import { sendNotifications } from '../features/notify/notifySlice';
 import { designTokens } from '../utils/designTokens';
-import { getUserId } from '../utils/globals';
+import { formatNumber, getUserId } from '../utils/globals';
 
 dayjs.extend(relativeTime);
 
@@ -226,6 +227,23 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
       }
     };
 
+    const handleToggleLike = useCallback(() => {
+      const adId = items._id || items.id;
+      if (!adId) return;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      dispatch(toggleLikeAd(adId));
+    }, [items._id, items.id, dispatch]);
+
+    // ✅ Track view when user opens the property details
+    const handleViewProperty = useCallback(() => {
+      const adId = items._id || items.id;
+      if (adId) {
+        dispatch(incrementAdView(adId));
+      }
+      handlePress();
+    }, [items._id, items.id, handlePress, dispatch]);
+
     const formatPrice = (amount: number) => {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -257,7 +275,7 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
           ]}
         >
           <TouchableWithoutFeedback
-            onPress={handlePress}
+            onPress={handleViewProperty}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             accessibilityRole='button'
@@ -265,16 +283,21 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
             accessibilityHint='Navigate to property details'
           >
             <View>
-              {/* Image Section with Overlay Info */}
+              {/* Image Section */}
               <View style={styles.imageSection}>
                 <Image
                   source={{ uri: photo[0]?.url }}
                   style={styles.mainImage}
-                  resizeMode='cover'
+                  placeholder={{
+                    blurhash:
+                      photo[0]?.url?.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+                  }}
+                  contentFit='cover'
+                  transition={200}
+                  cachePolicy='memory-disk'
+                  priority='high'
                   accessibilityLabel='Property image'
                 />
-
-                {/* Gradient Overlay */}
                 <View style={styles.imageOverlay} />
 
                 {/* Top Badges */}
@@ -325,7 +348,7 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
 
               {/* Content Section */}
               <View style={styles.contentSection}>
-                {/* User Profile - Fixed Layout */}
+                {/* User Profile */}
                 <View style={styles.userProfileSection}>
                   {user?.avatar ? (
                     <Avatar.Image size={48} source={{ uri: user.avatar }} />
@@ -361,6 +384,42 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                   </View>
                 </View>
 
+                {/* UPDATED: Stats Row with formatted numbers */}
+                {(items.viewsCount > 0 || items.likeCount > 0) && (
+                  <View style={styles.statsRow}>
+                    {items.viewsCount > 0 && (
+                      <View style={styles.statItem}>
+                        <Ionicons
+                          name='eye-outline'
+                          size={14}
+                          color={theme.colors.onSurfaceVariant}
+                        />
+                        <Text
+                          style={[
+                            styles.statText,
+                            { color: theme.colors.onSurfaceVariant },
+                          ]}
+                        >
+                          {formatNumber(items.viewsCount)}
+                        </Text>
+                      </View>
+                    )}
+                    {items.likeCount > 0 && (
+                      <View style={styles.statItem}>
+                        <Ionicons name='heart' size={14} color='#FF4081' />
+                        <Text
+                          style={[
+                            styles.statText,
+                            { color: theme.colors.onSurfaceVariant },
+                          ]}
+                        >
+                          {formatNumber(items.likeCount)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 {/* Title */}
                 <Text
                   style={[styles.title, { color: theme.colors.onSurface }]}
@@ -391,12 +450,6 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                       setReadMore((prev) => !prev);
                     }}
                     style={styles.readMoreButton}
-                    accessibilityRole='button'
-                    accessibilityLabel={
-                      readMore
-                        ? 'Show less description'
-                        : 'Read more description'
-                    }
                   >
                     <Text
                       style={[styles.readMore, { color: theme.colors.primary }]}
@@ -469,7 +522,6 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                   { backgroundColor: theme.colors.surfaceVariant },
                 ]}
               >
-                {/* Conditionally render Edit or Contact button */}
                 {showEditButton || isOwnListing ? (
                   <TouchableOpacity
                     onPress={handleEdit}
@@ -477,8 +529,6 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                       styles.primaryButton,
                       { backgroundColor: theme.colors.primary },
                     ]}
-                    accessibilityRole='button'
-                    accessibilityLabel='Edit listing'
                   >
                     <MaterialIcons
                       name='edit'
@@ -502,9 +552,6 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                       styles.primaryButton,
                       { backgroundColor: theme.colors.primary },
                     ]}
-                    accessibilityRole='button'
-                    accessibilityLabel='Send inquiry message'
-                    accessibilityState={{ disabled: sending }}
                   >
                     {sending ? (
                       <ActivityIndicator
@@ -538,14 +585,15 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                     iconColor={theme.colors.onSurfaceVariant}
                     onPress={shareImage}
                     style={styles.iconButton}
-                    accessibilityLabel='Share property'
                   />
                   <IconButton
-                    icon='heart-outline'
+                    icon={items.isLiked ? 'heart' : 'heart-outline'}
                     size={24}
-                    iconColor={theme.colors.onSurfaceVariant}
+                    iconColor={
+                      items.isLiked ? '#FF4081' : theme.colors.onSurfaceVariant
+                    }
+                    onPress={handleToggleLike}
                     style={styles.iconButton}
-                    accessibilityLabel='Add to favorites'
                   />
                 </View>
               </View>
@@ -567,8 +615,13 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
             <Image
               source={{ uri: imageUrl }}
               style={styles.modalImage}
-              resizeMode='contain'
-              accessibilityLabel='Full size property image'
+              placeholder={{
+                blurhash: imageUrl?.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+              }}
+              contentFit='cover'
+              transition={200}
+              cachePolicy='memory-disk'
+              priority='high'
             />
             <TouchableOpacity
               onPress={() => setVisible(false)}
@@ -576,8 +629,6 @@ const EstateContainer: React.FC<EstateContainerProps> = React.memo(
                 styles.closeButton,
                 { backgroundColor: theme.colors.primary },
               ]}
-              accessibilityRole='button'
-              accessibilityLabel='Close image modal'
             >
               <AntDesign
                 name='close'
@@ -800,5 +851,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: designTokens.spacing.md,
+    marginBottom: designTokens.spacing.sm,
+    paddingVertical: designTokens.spacing.xs,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

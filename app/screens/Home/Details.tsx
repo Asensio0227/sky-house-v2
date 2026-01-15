@@ -35,9 +35,14 @@ import { RootEstateState } from '../../../store';
 import Loading from '../../components/custom/Loading';
 import ImageGrid from '../../components/ImageGrid';
 import Comment from '../../components/reviews/Comment';
-import { retrieveAdWithComments } from '../../features/estate/estateSlice';
+import {
+  incrementAdView,
+  retrieveAdWithComments,
+  toggleLikeAd,
+} from '../../features/estate/estateSlice';
 import { UIEstateDocument } from '../../features/estate/types';
 import { designTokens } from '../../utils/designTokens';
+import { formatNumber } from '../../utils/globals';
 
 const { width } = Dimensions.get('window');
 
@@ -74,6 +79,22 @@ const Details = () => {
       }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    if (singleHouseWithComments?._id || singleHouseWithComments?.id) {
+      const adId = singleHouseWithComments._id || singleHouseWithComments.id;
+      dispatch(incrementAdView(adId));
+    }
+  }, [singleHouseWithComments?._id, singleHouseWithComments?.id, dispatch]);
+
+  // ✅ Handle like toggle
+  const handleToggleLike = useCallback(() => {
+    if (!singleHouseWithComments?._id && !singleHouseWithComments?.id) return;
+    const adId = singleHouseWithComments._id || singleHouseWithComments.id;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dispatch(toggleLikeAd(adId));
+  }, [singleHouseWithComments?._id, singleHouseWithComments?.id, dispatch]);
 
   const headerAnimatedStyle = {
     opacity: headerOpacity.interpolate({
@@ -213,6 +234,85 @@ const Details = () => {
     return null;
   })();
 
+  const MetadataRow = () => {
+    if (!viewsCount && !ad?.likeCount && !createdAt && !listingSource) {
+      return null;
+    }
+
+    return (
+      <View style={styles.metadataRow}>
+        {viewsCount !== undefined && viewsCount > 0 && (
+          <View style={styles.metadataItem}>
+            <Ionicons
+              name='eye-outline'
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={[
+                styles.metadataText,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
+            >
+              {formatNumber(viewsCount)} {viewsCount === 1 ? 'view' : 'views'}
+            </Text>
+          </View>
+        )}
+
+        {ad?.likeCount !== undefined && ad.likeCount > 0 && (
+          <View style={styles.metadataItem}>
+            <Ionicons name='heart' size={16} color='#FF4081' />
+            <Text
+              style={[
+                styles.metadataText,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
+            >
+              {formatNumber(ad.likeCount)}{' '}
+              {ad.likeCount === 1 ? 'like' : 'likes'}
+            </Text>
+          </View>
+        )}
+
+        {createdAt && (
+          <View style={styles.metadataItem}>
+            <Ionicons
+              name='calendar-outline'
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={[
+                styles.metadataText,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
+            >
+              Listed {formatDate(createdAt)}
+            </Text>
+          </View>
+        )}
+
+        {listingSource && (
+          <View style={styles.metadataItem}>
+            <Ionicons
+              name='business-outline'
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={[
+                styles.metadataText,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
+            >
+              {listingSource.charAt(0).toUpperCase() + listingSource.slice(1)}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -240,7 +340,11 @@ const Details = () => {
             titleStyle={styles.headerTitle}
           />
           <Appbar.Action icon='share-variant' onPress={shareProperty} />
-          <Appbar.Action icon='heart-outline' onPress={() => {}} />
+          <Appbar.Action
+            icon={ad?.isLiked ? 'heart' : 'heart-outline'}
+            color={ad?.isLiked ? '#FF4081' : undefined}
+            onPress={handleToggleLike}
+          />
         </Appbar.Header>
       </Animated.View>
 
@@ -255,6 +359,19 @@ const Details = () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             navigation.goBack();
           }}
+        />
+      </View>
+
+      <View style={styles.floatingLikeButton}>
+        <IconButton
+          icon={ad?.isLiked ? 'heart' : 'heart-outline'}
+          size={24}
+          iconColor={ad?.isLiked ? '#FF4081' : '#fff'}
+          style={[
+            styles.likeButton,
+            ad?.isLiked && { backgroundColor: 'rgba(255, 64, 129, 0.2)' },
+          ]}
+          onPress={handleToggleLike}
         />
       </View>
 
@@ -402,60 +519,7 @@ const Details = () => {
           )}
 
           {/* Metadata */}
-          <View style={styles.metadataRow}>
-            {viewsCount !== undefined && (
-              <View style={styles.metadataItem}>
-                <Ionicons
-                  name='eye-outline'
-                  size={16}
-                  color={theme.colors.onSurfaceVariant}
-                />
-                <Text
-                  style={[
-                    styles.metadataText,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  {viewsCount} views
-                </Text>
-              </View>
-            )}
-            {createdAt && (
-              <View style={styles.metadataItem}>
-                <Ionicons
-                  name='calendar-outline'
-                  size={16}
-                  color={theme.colors.onSurfaceVariant}
-                />
-                <Text
-                  style={[
-                    styles.metadataText,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  Listed {formatDate(createdAt)}
-                </Text>
-              </View>
-            )}
-            {listingSource && (
-              <View style={styles.metadataItem}>
-                <Ionicons
-                  name='business-outline'
-                  size={16}
-                  color={theme.colors.onSurfaceVariant}
-                />
-                <Text
-                  style={[
-                    styles.metadataText,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  {listingSource.charAt(0).toUpperCase() +
-                    listingSource.slice(1)}
-                </Text>
-              </View>
-            )}
-          </View>
+          <MetadataRow />
 
           <Divider style={styles.divider} />
 
@@ -928,9 +992,10 @@ const Details = () => {
             Contact Owner
           </Button>
           <IconButton
-            icon='heart-outline'
+            icon={ad?.isLiked ? 'heart' : 'heart-outline'}
             size={24}
-            iconColor={theme.colors.onSurfaceVariant}
+            iconColor={ad?.isLiked ? '#FF4081' : theme.colors.onSurfaceVariant}
+            onPress={handleToggleLike}
             style={{ margin: 0 }}
           />
         </View>
@@ -1226,5 +1291,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  floatingLikeButton: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    zIndex: 20,
+  },
+  likeButton: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    margin: 0,
   },
 });

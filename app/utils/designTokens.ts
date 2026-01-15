@@ -31,14 +31,15 @@ export const designTokens = {
       xxl: 24,
       xxxl: 32,
     },
+    // ✅ Improved line heights with better ratios (1.4-1.5x font size)
     lineHeight: {
-      xs: 16,
-      sm: 20,
-      md: 24,
-      lg: 28,
-      xl: 32,
-      xxl: 36,
-      xxxl: 48,
+      xs: 18, // 12 * 1.5 = 18
+      sm: 20, // 14 * 1.43 ≈ 20
+      md: 24, // 16 * 1.5 = 24
+      lg: 26, // 18 * 1.44 ≈ 26
+      xl: 28, // 20 * 1.4 = 28
+      xxl: 34, // 24 * 1.42 ≈ 34
+      xxxl: 44, // 32 * 1.38 ≈ 44
     },
     fontWeight: {
       regular: '400' as const,

@@ -31,6 +31,106 @@ SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 1000, fade: true });
 LogBox.ignoreAllLogs(true);
 
+// ============================================================================
+// DUPLICATE MONITORING (Development Only)
+// ============================================================================
+
+/**
+ * Monitor Redux state for duplicate estate entries
+ * Only runs in development mode
+ */
+const monitorStateForDuplicates = (store: any) => {
+  if (!__DEV__) return;
+
+  let lastCheck = 0;
+  const CHECK_INTERVAL = 10000; // Check every 10 seconds
+
+  console.log('🔍 Duplicate monitor initialized');
+
+  const checkForDuplicates = (array: any[], arrayName: string): number => {
+    const ids = new Map<string, number>();
+    let duplicateCount = 0;
+
+    array.forEach((item) => {
+      // Get ID from either _id or id field
+      const itemId = item?._id || item?.id;
+      if (itemId) {
+        const idStr = String(itemId);
+        const count = (ids.get(idStr) || 0) + 1;
+        ids.set(idStr, count);
+        if (count > 1) {
+          duplicateCount++;
+        }
+      }
+    });
+
+    return duplicateCount;
+  };
+
+  const unsubscribe = store.subscribe(() => {
+    const now = Date.now();
+    if (now - lastCheck < CHECK_INTERVAL) return;
+    lastCheck = now;
+
+    try {
+      const state = store.getState().ESTATE;
+
+      if (!state) return;
+
+      const results = {
+        houses: {
+          total: state.houses?.length || 0,
+          duplicates: checkForDuplicates(state.houses || [], 'houses'),
+        },
+        userAds: {
+          total: state.userAds?.length || 0,
+          duplicates: checkForDuplicates(state.userAds || [], 'userAds'),
+        },
+        filteredHouses: {
+          total: state.filteredHouses?.length || 0,
+          duplicates: checkForDuplicates(
+            state.filteredHouses || [],
+            'filteredHouses'
+          ),
+        },
+        featuredAds: {
+          total: state.featuredAds?.length || 0,
+          duplicates: checkForDuplicates(
+            state.featuredAds || [],
+            'featuredAds'
+          ),
+        },
+      };
+
+      const totalDuplicates = Object.values(results).reduce(
+        (sum, r) => sum + r.duplicates,
+        0
+      );
+
+      if (totalDuplicates > 0) {
+        console.error('🚨 DUPLICATES DETECTED:', results);
+      } else {
+        console.log('✅ No duplicates found in ESTATE state');
+        console.log('📊 Array sizes:', {
+          houses: results.houses.total,
+          userAds: results.userAds.total,
+          filteredHouses: results.filteredHouses.total,
+          featuredAds: results.featuredAds.total,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking for duplicates:', error);
+    }
+  });
+
+  // Cleanup function
+  return unsubscribe;
+};
+
+// ============================================================================
+// APP COMPONENT
+// ============================================================================
+
 function App() {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -352,7 +452,27 @@ function ThemedApp() {
   );
 }
 
+// ============================================================================
+// MAIN COMPONENT - Initialize Duplicate Monitor Here
+// ============================================================================
+
 export default function Main() {
+  // ✅ Initialize duplicate monitor once when app starts
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('🚀 Initializing duplicate monitor...');
+      const unsubscribe = monitorStateForDuplicates(store);
+
+      // Cleanup on unmount (though Main never unmounts)
+      return () => {
+        if (unsubscribe) {
+          console.log('🛑 Stopping duplicate monitor');
+          unsubscribe();
+        }
+      };
+    }
+  }, []); // Empty dependency array - run once on mount
+
   return (
     <StoreProvider store={store}>
       <PersistGate loading={null} persistor={persistor}>

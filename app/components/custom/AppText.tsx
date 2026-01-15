@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 
 const AppText: React.FC<{
@@ -29,7 +29,12 @@ const AppText: React.FC<{
   return (
     <Text
       variant={variant}
-      style={[styles.text, style, { color: color || theme.colors.onSurface }]}
+      style={[
+        styles.text,
+        Platform.OS === 'android' && styles.androidFix,
+        style,
+        { color: color || theme.colors.onSurface },
+      ]}
       {...otherProps}
     >
       {title}
@@ -39,7 +44,17 @@ const AppText: React.FC<{
 
 const styles = StyleSheet.create({
   text: {
-    fontFamily: 'System', // Use system font for better performance
+    fontFamily: 'System',
+    // Universal fix for proper text rendering
+    paddingVertical: 2,
+  },
+  androidFix: {
+    // Android-specific fixes for text clipping
+    includeFontPadding: false, // Remove extra padding that clips descenders
+    textAlignVertical: 'center', // Center text properly
+    // Add slight extra padding to prevent clipping on some Android devices
+    paddingTop: 3,
+    paddingBottom: 3,
   },
 });
 

@@ -1,42 +1,51 @@
 import { Formik } from 'formik';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
 
-const AppForm: React.FC<{
+interface AppFormProps {
   initialValues: any;
-  onSubmit: any;
   validationSchema: any;
+  onSubmit: (values: any) => void | Promise<void>;
   children: React.ReactNode;
   style?: any;
-  innerRef?: any;
-}> = ({
-  children,
+}
+
+const AppForm: React.FC<AppFormProps> = ({
   initialValues,
-  onSubmit,
   validationSchema,
+  onSubmit,
+  children,
   style,
-  innerRef,
 }) => {
+  console.log('🔶 AppForm rendered');
+
+  const handleSubmit = async (values: any, actions: any) => {
+    console.log('🟡 AppForm handleSubmit called');
+    console.log('📤 Values being submitted:', values);
+
+    try {
+      await onSubmit(values);
+      console.log('✅ onSubmit completed successfully');
+    } catch (error) {
+      console.log('❌ onSubmit error:', error);
+    } finally {
+      actions.setSubmitting(false);
+    }
+  };
+
   return (
     <Formik
-      innerRef={innerRef}
       initialValues={initialValues}
       validationSchema={validationSchema}
-      onSubmit={onSubmit}
-      validateOnMount={false}
-      validateOnChange={false}
-      validateOnBlur={true}
-      enableReinitialize={true} // ✅ CRITICAL: This allows Formik to update when initialValues change
+      onSubmit={handleSubmit}
+      validateOnMount={true}
+      enableReinitialize={true}
     >
-      {() => <View style={[styles.container, style]}>{children}</View>}
+      {({ handleSubmit: formikHandleSubmit }) => {
+        console.log('🔸 Formik render function called');
+        return <>{children}</>;
+      }}
     </Formik>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-});
 
 export default AppForm;

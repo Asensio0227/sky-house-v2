@@ -15,6 +15,7 @@ import Loading from '../../components/custom/Loading';
 import UserProfile from '../../components/custom/UserProfile';
 import ImageGrid from '../../components/ImageGrid';
 import { retrieveAd } from '../../features/estate/estateSlice';
+import { formatNumber, formatNumberDetailed } from '../../utils/globals';
 
 const Listing = () => {
   const router: any = useRoute();
@@ -66,7 +67,7 @@ const Listing = () => {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      // backgroundColor: theme.colors.background,
     },
     section: {
       paddingHorizontal: 16,
@@ -75,7 +76,7 @@ const Listing = () => {
     sectionTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: theme.colors.onSurface,
+      // color: theme.colors.onSurface,
       marginBottom: 16,
     },
     priceCard: {
@@ -216,7 +217,9 @@ const Listing = () => {
                 mode='flat'
                 style={[
                   styles.chip,
-                  { backgroundColor: theme.colors.primaryContainer },
+                  {
+                    backgroundColor: theme.colors.primaryContainer,
+                  },
                 ]}
                 textStyle={{ color: theme.colors.onPrimaryContainer }}
               >
@@ -328,8 +331,23 @@ const Listing = () => {
             }
           />
         )}
+        {/* UPDATED: Views with formatted number */}
         {listing?.viewsCount !== undefined && (
-          <InfoRow label='Views' value={listing.viewsCount.toLocaleString()} />
+          <InfoRow
+            label='Views'
+            value={`${formatNumber(listing.viewsCount)} (${formatNumberDetailed(
+              listing.viewsCount
+            )})`}
+          />
+        )}
+        {/* UPDATED: Likes with formatted number */}
+        {listing?.likeCount !== undefined && listing.likeCount > 0 && (
+          <InfoRow
+            label='Likes'
+            value={`${formatNumber(listing.likeCount)} (${formatNumberDetailed(
+              listing.likeCount
+            )})`}
+          />
         )}
       </View>
 

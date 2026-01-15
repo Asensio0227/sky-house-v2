@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useFormikContext } from 'formik';
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { Button, useTheme } from 'react-native-paper';
+import { Button } from 'react-native-paper';
 import { designTokens } from '../../utils/designTokens';
 
 const SubmitButton: React.FC<{
@@ -18,12 +18,17 @@ const SubmitButton: React.FC<{
   style,
   disabled = false,
 }) => {
-  const { handleSubmit, isSubmitting } = useFormikContext();
-  const theme = useTheme();
+  const { submitForm, isSubmitting, values, errors, touched, isValid } =
+    useFormikContext();
 
-  const handlePress = () => {
+  const handlePress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    handleSubmit();
+
+    try {
+      await submitForm();
+    } catch (error) {
+      console.log('❌ submitForm error:', error);
+    }
   };
 
   return (

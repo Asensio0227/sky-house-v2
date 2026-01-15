@@ -140,4 +140,8 @@ export interface Houses {
   fetchMode: 'nearby' | 'all';
   hasMoreNearby: boolean;
   nearbyExhausted: boolean;
+  viewsCount?: number;
+  likedBy?: string[];
+  likeCount?: number;
+  isLiked?: boolean;
 }

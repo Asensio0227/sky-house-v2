@@ -44,44 +44,75 @@ export const customData = (userData: UserDocument | any, profile?: boolean) => {
     email,
     userAds_address,
   } = userData;
-  const physical_address: any = {
+
+  const formData = new FormData();
+
+  // ✅ Basic fields
+  formData.append('first_name', userData.first_name);
+  formData.append('last_name', userData.last_name);
+  formData.append('username', userData.username);
+  formData.append('email', userData.email); // ✅ Root level email (REQUIRED)
+  formData.append('gender', userData.gender);
+  formData.append('ideaNumber', userData.ideaNumber);
+  formData.append('date_of_birth', userData.date_of_birth);
+
+  // ✅ Physical address as JSON string (matching how backend parses it)
+  const physical_address = {
     city,
     postal_code,
     street,
     country,
     province,
   };
-  const contact_details: any = { phone_number, email };
-  const formData = new FormData();
-  Object.entries(contact_details).forEach(([key, value]) => {
-    formData.append(`contact_details[${key}]`, value as any);
-  });
-  Object.entries(physical_address).forEach(([key, value]) => {
-    formData.append(`physical_address[${key}]`, value as any);
-  });
+  formData.append('physical_address', JSON.stringify(physical_address));
 
-  const stringifyLocation = JSON.stringify(userAds_address);
-  {
-    !profile && formData.append(`userAds_address`, stringifyLocation);
+  // ✅ Contact details as JSON string with BOTH phone_number AND email
+  const contact_details = {
+    phone_number,
+    email, // ✅ Email ALSO required in contact_details
+  };
+  formData.append('contact_details', JSON.stringify(contact_details));
+
+  // ✅ Optional fields
+  if (!profile) {
+    if (userAds_address) {
+      formData.append('userAds_address', JSON.stringify(userAds_address));
+    }
+    if (userData.password) {
+      formData.append('password', userData.password);
+    }
+    if (userData.expoToken) {
+      formData.append('expoToken', userData.expoToken);
+    }
   }
-  {
-    !profile && formData.append('password', userData.password);
+
+  // ✅ Avatar - handle both file:// URIs and existing URLs
+  if (userData.avatar) {
+    if (
+      typeof userData.avatar === 'string' &&
+      userData.avatar.startsWith('file://')
+    ) {
+      // New image selected from device
+      formData.append('avatar', {
+        uri: userData.avatar,
+        name: 'uploaded_image.jpg',
+        type: 'image/jpeg',
+      } as any);
+    } else if (
+      typeof userData.avatar === 'string' &&
+      userData.avatar.startsWith('http')
+    ) {
+      // Existing image URL - don't send it, backend already has it
+      // The controller will keep the existing avatar if no new file is uploaded
+    } else {
+      // Fallback for other cases
+      formData.append('avatar', {
+        uri: userData.avatar,
+        name: 'uploaded_image.jpg',
+        type: 'image/jpeg',
+      } as any);
+    }
   }
-  formData.append('first_name', userData.first_name);
-  formData.append('last_name', userData.last_name);
-  formData.append('username', userData.username);
-  formData.append('email', userData.email);
-  formData.append('gender', userData.gender);
-  formData.append('ideaNumber', userData.ideaNumber);
-  formData.append('date_of_birth', userData.date_of_birth);
-  {
-    !profile && formData.append('expoToken', userData.expoToken);
-  }
-  formData.append('avatar', {
-    uri: userData.avatar,
-    name: 'uploaded_image.jpg',
-    type: 'image/jpeg',
-  } as any);
 
   return formData;
 };
@@ -539,4 +570,39 @@ export const getErrorMessage = (error: any): string => {
   // Default fallback
   console.log('⚠️ No error message found, using default');
   return 'An error occurred';
+};
+
+/**
+ * Format numbers with K, M abbreviations
+ * @param num - The number to format
+ * @returns Formatted string (e.g., "1.2K", "3.5M")
+ */
+export const formatNumber = (num: number | undefined | null): string => {
+  if (num === undefined || num === null || isNaN(num)) {
+    return '0';
+  }
+
+  const absNum = Math.abs(num);
+
+  if (absNum >= 1000000) {
+    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+  if (absNum >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  }
+  return num.toString();
+};
+
+/**
+ * Format numbers with full locale string for tooltips/details
+ * @param num - The number to format
+ * @returns Formatted string with commas (e.g., "1,234,567")
+ */
+export const formatNumberDetailed = (
+  num: number | undefined | null
+): string => {
+  if (num === undefined || num === null || isNaN(num)) {
+    return '0';
+  }
+  return num.toLocaleString('en-US');
 };

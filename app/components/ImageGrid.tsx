@@ -1,36 +1,72 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
-import {
-  Image,
-  StyleSheet,
-  TouchableWithoutFeedback,
-  View,
-} from 'react-native';
-import { ActivityIndicator, MD3Colors, useTheme } from 'react-native-paper';
+import { StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, useTheme } from 'react-native-paper';
 import { IPhoto } from '../features/estate/types';
 
 const ImageGrid: React.FC<{ data: IPhoto[] | any }> = ({ data }) => {
-  const [mainImg, setMainImg] = useState(data ? data[0] : null);
+  const [mainImg, setMainImg] = useState(data?.[0] || null);
   const theme = useTheme();
-  if (!mainImg) return <ActivityIndicator size={'small'} />;
+
+  if (!data || data.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size='small' />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ marginBottom: -15, backgroundColor: theme.colors.outline }}>
-      <Image style={styles.img} source={{ uri: mainImg.url }} />
+    <View style={[styles.container, { backgroundColor: theme.colors.outline }]}>
+      {/* Main Image with blurhash placeholder */}
+      <Image
+        style={styles.mainImg}
+        source={{ uri: mainImg.url }}
+        placeholder={{
+          blurhash: mainImg.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+        }}
+        contentFit='cover'
+        transition={200}
+        cachePolicy='memory-disk'
+        priority='high'
+      />
+
+      {/* Thumbnail Gallery */}
       <View style={styles.gallery}>
-        {data &&
-          data.map((item: IPhoto, index: any) => {
-            return (
-              <TouchableWithoutFeedback
-                key={item.id}
-                onPress={() => setMainImg(data[index])}
+        {data.map((item: IPhoto, index: number) => {
+          const isActive = mainImg.id === item.id;
+
+          return (
+            <TouchableWithoutFeedback
+              key={item.id}
+              onPress={() => setMainImg(item)}
+            >
+              <View
+                style={[
+                  styles.thumbnailWrapper,
+                  isActive && [
+                    styles.activeThumbnail,
+                    { borderColor: theme.colors.primary },
+                  ],
+                ]}
               >
                 <Image
-                  style={[styles.mainImage, index % 2 === 0 && styles.active]}
-                  source={{ uri: item.url }}
+                  style={styles.thumbnail}
+                  source={{
+                    uri: item.thumbnailUrl || item.url, // Use thumbnail URL if available
+                  }}
+                  placeholder={{
+                    blurhash: item.blurhash || 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+                  }}
+                  contentFit='cover'
+                  transition={100}
+                  cachePolicy='memory-disk'
+                  priority={index < 4 ? 'high' : 'normal'} // Prioritize first 4
                 />
-              </TouchableWithoutFeedback>
-            );
-          })}
+              </View>
+            </TouchableWithoutFeedback>
+          );
+        })}
       </View>
     </View>
   );
@@ -39,33 +75,43 @@ const ImageGrid: React.FC<{ data: IPhoto[] | any }> = ({ data }) => {
 export default ImageGrid;
 
 const styles = StyleSheet.create({
-  main: {
-    flex: 1,
-    overflow: 'hidden',
-    objectFit: 'cover',
+  container: {
+    marginBottom: -15,
+  },
+  loadingContainer: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mainImg: {
+    width: '100%',
+    aspectRatio: 1,
   },
   gallery: {
     marginTop: 2,
     marginHorizontal: 2,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
-  mainImage: {
+  thumbnailWrapper: {
     height: 60,
     width: '18%',
-    marginBottom: 16,
-    marginHorizontal: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  img: {
+  thumbnail: {
     width: '100%',
-    // height: 100,
-    aspectRatio: 1,
+    height: '100%',
   },
-  active: {
-    shadowColor: MD3Colors.primary40,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 1,
-    elevation: 2,
+  activeThumbnail: {
+    borderWidth: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });
